@@ -1,0 +1,1076 @@
+
+BROKER SCHEMA OUTBOUND_TEXT_XML
+
+
+CREATE COMPUTE MODULE PILOT_Get_REQFPQ_Data_GetFormatType_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET Environment.variables.ediStartTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS EDISTARTTIME;');
+		SET Environment.variables.txnID = InputRoot.XMLNSC.PCS.Common_Ref;
+		DECLARE MessageName CHARACTER InputRoot.XMLNSC.PCS.Action_In;
+		DECLARE request BLOB ASBITSTREAM(InputRoot.XMLNSC, 549,1208);
+		DECLARE ReplaceCarriageReturn BLOB X'0d0a';
+		SET request = REPLACE(request, ReplaceCarriageReturn);
+		SET Environment.variables.request = CAST(request AS CHARACTER CCSID 1208);
+		SET Environment.variables.dbStartTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS DBSTARTTIME;');
+		CALL EDI_GetFormatTypeByRefAndMsg(Environment.variables.txnID,MessageName,Environment.Variables.Result[],Environment.Variables.Result56[]);
+
+	END;
+END MODULE;
+
+CREATE PROCEDURE EDI_TGetREQFPQ( IN TransactionID CHARACTER)
+LANGUAGE DATABASE
+DYNAMIC RESULT SETS 7
+EXTERNAL NAME "dbo.EDI_TGetREQFPQ";
+
+CREATE PROCEDURE EDI_XGetREQFPQ( IN TransactionID CHARACTER)
+LANGUAGE DATABASE
+DYNAMIC RESULT SETS 20
+EXTERNAL NAME "dbo.EDI_XGetREQFPQ";
+
+CREATE PROCEDURE EDI_GetFormatTypeByRefAndMsg( IN TransactionID CHARACTER,IN MessageName CHARACTER)
+LANGUAGE DATABASE
+DYNAMIC RESULT SETS 2
+EXTERNAL NAME "dbo.EDI_GetFormatTypeByRefAndMsg";
+
+CREATE COMPUTE MODULE PILOT_Get_REQFPQ_Data_textCreation_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+
+		DECLARE MsRefno CHAR;
+		SET MsRefno = CAST(Environment.variables.txnID AS CHARACTER CCSID 1208);
+		SET Environment.PCS_Audit.Header.MS_REF_NO = MsRefno;
+		SET Environment.PCS_Audit.Header.MSG_UID = UUIDASCHAR;
+		SET Environment.PCS_Audit.Header.MSG_TYPE = 'REQFPQ_TXT_OUT';
+		SET Environment.PCS_Audit.Header.MSG_TIME = CURRENT_TIMESTAMP;
+		SET Environment.PCS_Audit.Header.MSG_SNDR = BrokerUserId;
+
+		CALL EDI_TGetREQFPQ(Environment.variables.txnID,Environment.Variables.TXTResult1[],Environment.Variables.TXTResult2[],Environment.Variables.TXTResult3[],Environment.Variables.TXTResult4[],Environment.Variables.TXTResult5[],Environment.Variables.TXTResult6[],Environment.Variables.TXTResult7[],Environment.Variables.TXTResult8[],Environment.Variables.TXTResult9[],Environment.Variables.TXTResult10[],Environment.Variables.TXTResult11[],Environment.Variables.TXTResult12[]);
+
+		DECLARE PORT CHAR;
+		SET PORT = SUBSTRING(Environment.Variables.TXTResult2.SFTP_PATH AFTER 'PORTS/');
+		SET Environment.PCS_Audit.Header.PORT_CODE = SUBSTRING(PORT BEFORE '/');
+		SET Environment.PCS_Audit.Database.DB_SP_END_TS = CURRENT_TIMESTAMP;
+
+		SET Environment.variables.dbEndTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS DBENDTIME;');
+		SET OutputRoot.Properties.CodedCharSetId = 1208;
+
+		IF (Environment.Variables.TXTResult1.ApprovalStatus = 'Submitted') THEN
+			SET Environment.Format = 'TXT';
+			SET Environment.PCS_Audit.Details.Message.EDI_START_TS = CURRENT_TIMESTAMP;
+			SET Environment.PCS_Audit.Database.DB_SP_REMARK = 'S';
+			SET Environment.PCS_Audit.Database.DB_SP_STATUS = 'Executed Successfully';
+			SET Environment.PCS_Audit.Header.Status = 'Submitted';
+			SET Environment.PCS_Audit.Details.Message.FILE_NAME = Environment.Variables.TXTResult2.FILE_NAME;
+			SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Environment.Variables.TXTResult2.SFTP_PATH;
+			SET Environment.Flag = 'Y';
+
+			PROPAGATE TO TERMINAL 'out1';
+
+			RETURN FALSE;
+
+		ELSEIF (Environment.Variables.TXTResult1.ApprovalStatus = 'Rejected') THEN
+			SET Environment.Format = 'TXT';
+			SET Environment.PCS_Audit.Details.Message.EDI_START_TS = CURRENT_TIMESTAMP;
+			SET Environment.PCS_Audit.Database.DB_SP_REMARK = 'S';
+			SET Environment.PCS_Audit.Database.DB_SP_STATUS = 'Executed Successfully';
+			SET Environment.PCS_Audit.Header.Status = 'Submitted';
+			SET Environment.PCS_Audit.Details.Message.FILE_NAME = Environment.Variables.TXTResult2.FILE_NAME;
+			SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Environment.Variables.TXTResult2.SFTP_PATH;
+			SET Environment.Flag = 'Y';
+			PROPAGATE TO TERMINAL 'out1';
+
+			RETURN FALSE;
+
+		ELSEIF (Environment.Variables.TXTResult1.ApprovalStatus = 'ReSubmitted') THEN
+			SET Environment.Format = 'TXT';
+			SET Environment.PCS_Audit.Details.Message.EDI_START_TS = CURRENT_TIMESTAMP;
+			SET Environment.PCS_Audit.Database.DB_SP_REMARK = 'S';
+			SET Environment.PCS_Audit.Database.DB_SP_STATUS = 'Executed Successfully';
+			SET Environment.PCS_Audit.Header.Status = 'Submitted';
+			SET Environment.PCS_Audit.Details.Message.FILE_NAME = Environment.Variables.TXTResult2.FILE_NAME;
+			SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Environment.Variables.TXTResult2.SFTP_PATH;
+			SET Environment.Flag = 'Y';
+		END IF;
+		PROPAGATE TO TERMINAL 'out1';
+
+		RETURN FALSE;
+
+
+		SET OutputRoot.Properties.MessageType ='{}:REQFPQ';
+		SET OutputRoot.Properties.MessageSet ='{JMB_DFDL}';
+		SET OutputRoot.Properties.ReplyProtocol = 'FILE';
+		--UNH
+
+		SET OutputRoot.DFDL.REQFPQ.UNH.DocumentType = Environment.Variables.TXTResult1[1].DocumentType;
+		SET OutputRoot.DFDL.REQFPQ.UNH.DocumentName = Environment.Variables.TXTResult1[1].DocumentName;
+		SET OutputRoot.DFDL.REQFPQ.UNH.DocumentNumber = Environment.Variables.TXTResult1[1].DocumentNumber;
+		SET OutputRoot.DFDL.REQFPQ.UNH.CommonRefNumber = Environment.Variables.TXTResult1[1].CommonRefNumber;
+		SET OutputRoot.DFDL.REQFPQ.UNH.MessageType = Environment.Variables.TXTResult1[1].MessageType;
+		SET OutputRoot.DFDL.REQFPQ.UNH.SenderID = Environment.Variables.TXTResult1[1].SenderID;
+		--RPD
+		DECLARE countRecord INTEGER 0;
+		DECLARE i INTEGER 1;
+
+		SET countRecord = CARDINALITY(Environment.Variables.TXTResult2[]);
+
+		WHILE countRecord > 0 DO
+			SET OutputRoot.DFDL.REQFPQ.RPD.RecipientsID[i] = Environment.Variables.TXTResult2[i].Result2 ;
+			SET i = i + 1;
+			SET countRecord = countRecord - 1;
+		END WHILE;
+		-- NPD
+
+		DECLARE countRecord1 INTEGER 0;
+		DECLARE j INTEGER 1;
+
+		SET countRecord1 = CARDINALITY(Environment.Variables.TXTResult3[]);
+
+		WHILE countRecord1 > 0 DO
+			SET OutputRoot.DFDL.REQFPQ.NPD.NotifyPartyID[j] = Environment.Variables.TXTResult3[j].NotifyParty ;
+			SET j = j + 1;
+			SET countRecord1 = countRecord1 - 1;
+		END WHILE;
+
+	END;
+
+
+	CREATE PROCEDURE EDI_TGetREQFPQ( IN TransactionID CHARACTER)
+	LANGUAGE DATABASE
+	DYNAMIC RESULT SETS 12
+	EXTERNAL NAME "dbo.EDI_TGetREQFPQ";
+END MODULE;
+
+
+CREATE COMPUTE MODULE PILOT_Get_REQFPQ_Data_xmlCreation_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+       DECLARE MsRefno CHAR;
+		SET MsRefno = CAST(Environment.variables.txnID AS CHARACTER CCSID 1208);
+		SET Environment.PCS_Audit.Header.MS_REF_NO = MsRefno;
+		SET Environment.PCS_Audit.Header.MSG_UID = UUIDASCHAR;
+		SET Environment.PCS_Audit.Header.MSG_TYPE = 'REQFPQ_XML_OUT';
+		SET Environment.PCS_Audit.Header.MSG_TIME = CURRENT_TIMESTAMP;
+		SET Environment.PCS_Audit.Header.MSG_SNDR = BrokerUserId;
+
+
+		CALL EDI_XGetREQFPQ(Environment.variables.txnID,Environment.Variables.Result1[],Environment.Variables.Result2[],Environment.Variables.Result3[],Environment.Variables.Result4[],Environment.Variables.Result5[],Environment.Variables.Result6[],Environment.Variables.Result7[],Environment.Variables.Result8[],Environment.Variables.Result9[],Environment.Variables.Result10[],Environment.Variables.Result11[],Environment.Variables.Result12[],Environment.Variables.Result13[],Environment.Variables.Result14[],Environment.Variables.Result15[],Environment.Variables.Result16[],Environment.Variables.Result17[],Environment.Variables.Result18[],Environment.Variables.Result19[],Environment.Variables.Result20[]);
+
+		DECLARE PORT CHAR;
+		SET PORT = SUBSTRING(Environment.Variables.Result2.SFTP_PATH AFTER 'PORTS/');
+		SET Environment.PCS_Audit.Header.PORT_CODE = SUBSTRING(PORT BEFORE '/');
+		SET Environment.PCS_Audit.Database.DB_SP_END_TS = CURRENT_TIMESTAMP;
+		
+
+		IF (Environment.Variables.Result1.ApprovalStatus = 'Rejected') THEN
+			SET Environment.Format = 'XML';
+			SET Environment.PCS_Audit.Details.Message.EDI_START_TS = CURRENT_TIMESTAMP;
+			SET Environment.PCS_Audit.Database.DB_SP_REMARK = 'S';
+			SET Environment.PCS_Audit.Database.DB_SP_STATUS = 'Executed Successfully';
+			SET Environment.PCS_Audit.Header.Status = 'Submitted';
+			SET Environment.PCS_Audit.Details.Message.FILE_NAME = Environment.Variables.Result2.FILE_NAME;
+			SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Environment.Variables.Result2.SFTP_PATH;
+			SET Environment.Flag = 'Y';
+			PROPAGATE TO TERMINAL 'out1';
+
+			RETURN FALSE;
+		
+
+		ELSEIF (Environment.Variables.Result1.ApprovalStatus = 'Submitted') OR (Environment.Variables.Result1.ApprovalStatus = 'ReSubmitted')THEN
+
+			SET Environment.Format = 'XML';
+			SET Environment.PCS_Audit.Details.Message.EDI_START_TS = CURRENT_TIMESTAMP;
+			SET Environment.PCS_Audit.Database.DB_SP_REMARK = 'S';
+			SET Environment.PCS_Audit.Database.DB_SP_STATUS = 'Executed Successfully';
+			SET Environment.PCS_Audit.Header.Status = 'Submitted';
+			SET Environment.PCS_Audit.Details.Message.FILE_NAME = Environment.Variables.Result2.FILE_NAME;
+			SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Environment.Variables.Result2.SFTP_PATH;
+			SET Environment.Flag = 'Y';
+
+			SET Environment.variables.dbEndTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS DBENDTIME;');
+			DECLARE i INTEGER 1;
+			SET OutputRoot.XMLNSC.RequestForFreePratique.DocumentHeader.DocumentReference.DocumentType = Environment.Variables.Result1[1].DocumentType;
+			DECLARE headerRef REFERENCE TO OutputRoot.XMLNSC.RequestForFreePratique.DocumentHeader.DocumentReference;
+			SET headerRef.DocumentName = Environment.Variables.Result1[1].DocumentName;
+			SET headerRef.DocumentNumber = Environment.Variables.Result1[1].DocumentNumber;
+			SET headerRef.CommonRefNumber = Environment.Variables.Result1[1].CommonRefNumber;
+			SET headerRef.Messagetype = Environment.Variables.Result1[1].Messagetype;
+			SET headerRef.SenderID = Environment.Variables.Result1[1].SenderID;
+
+			DECLARE recPartyCardinality INTEGER CARDINALITY (Environment.Variables.Result2[]);
+			DECLARE notPartyCardinality INTEGER CARDINALITY (Environment.Variables.Result3[]);
+			WHILE (i <= recPartyCardinality) DO
+				SET OutputRoot.XMLNSC.RequestForFreePratique.DocumentHeader.DocumentExchangeDetails.ReceivingPartyDetails.ReceivingParty[i] = Environment.Variables.Result2[i].ReceivingParty;
+				SET i = i + 1;
+			END WHILE;
+			SET i = 1;
+			WHILE (i <= notPartyCardinality) DO
+				SET OutputRoot.XMLNSC.RequestForFreePratique.DocumentHeader.DocumentExchangeDetails.NotifyPartyDetails.NotifyParty[i] = Environment.Variables.Result3[i].NotifyParty;
+				SET i = i + 1;
+			END WHILE;
+
+			DECLARE j INTEGER 1;
+			SET OutputRoot.XMLNSC.RequestForFreePratique.DocumentDetails.RequestForFreePratiqueDetails.RecordType = Environment.Variables.Result1[1].RecordType;
+			DECLARE reqAsstHeader REFERENCE TO OutputRoot.XMLNSC.RequestForFreePratique.DocumentDetails.RequestForFreePratiqueDetails;
+			SET reqAsstHeader.VCN = Environment.Variables.Result13[1].VCN;
+			SET reqAsstHeader.CallSign = Environment.Variables.Result13[1].CALL_SIGN;
+			SET reqAsstHeader.VesselName = Environment.Variables.Result13[1].VESSEL_NAME;
+			SET reqAsstHeader.VesselNationality = Environment.Variables.Result13[1].VESSEL_NATIONAITY;
+			SET reqAsstHeader.IMONumber = Environment.Variables.Result13[1].IMO_NUMBER;
+			SET reqAsstHeader.VoyageNumber = Environment.Variables.Result13[1].VOYAGE_NUMBER;
+			SET reqAsstHeader.ApprovalStatus = Environment.Variables.Result1[1].ApprovalStatus;
+			SET reqAsstHeader.ETA = Environment.Variables.Result13[1].ETA;
+			SET reqAsstHeader.ETD = Environment.Variables.Result13[1].ETD;
+			SET reqAsstHeader.Berth = Environment.Variables.Result13[1].BERTH;
+			SET reqAsstHeader.BerthType = Environment.Variables.Result13[1].BERTH_TYPE;
+			SET reqAsstHeader.MasterName = Environment.Variables.Result13[1].MASTER_NAME;
+			SET reqAsstHeader.MasterEmailid = Environment.Variables.Result13[1].MASTER_EMAILID;
+			SET reqAsstHeader.AnchorDroppedDate = Environment.Variables.Result13[1].ANCHOR_DROPEXPD_DATE_TIME;
+			SET reqAsstHeader.Trade = Environment.Variables.Result13[1].TRADE_TYPE;
+			SET reqAsstHeader.ShipSanitationCertificateNo = Environment.Variables.Result13[1].SSC_CERT_NO;
+			SET reqAsstHeader.ShipSanitationControlCertificate = Environment.Variables.Result13[1].SSC_CERT;
+			SET reqAsstHeader.TotalCrew = Environment.Variables.Result13[1].Total_Crew;
+			SET reqAsstHeader.TotalPassenger = Environment.Variables.Result13[1].Total_Passenger;
+			
+			IF (Environment.Variables.Result13[1].SSC_CERT = 'Y')THEN
+				SET reqAsstHeader.ShipSanitationControlCertificate.IssueDate = Environment.Variables.Result13[1].ISSUE_DATE_SCC;
+
+			ELSE
+				SET reqAsstHeader.ShipSanitationControlCertificate = Environment.Variables.Result13[1].SSC_CERT;
+			END IF;
+			IF (Environment.Variables.Result13[1].CEC_CERT = 'Y')THEN
+				SET reqAsstHeader.ShipSanitationControlExemptionCertificate.IssueDate = Environment.Variables.Result13[1].ISSUE_DATE_CEC;
+
+			ELSE
+				SET reqAsstHeader.ShipSanitationControlExemptionCertificate = Environment.Variables.Result13[1].CEC_CERT;
+			END IF;
+			IF (Environment.Variables.Result13[1].MNTH_EXTN = 'Y')THEN
+				SET reqAsstHeader.ShipSanitationOneMonthExtensionCertificate.IssueDate = Environment.Variables.Result13[1].ISSUE_DATE_OME;			
+			ELSE
+				SET reqAsstHeader.ShipSanitationOneMonthExtensionCertificate = Environment.Variables.Result13[1].MNTH_EXTN;
+			END IF;
+			IF (Environment.Variables.Result14[1].PORT_CALLED_LAST_30DAY = 'Y')THEN
+				SET reqAsstHeader.PortsCalledDuringTheLast30DaysDetails.PortCode = Environment.Variables.Result14[1].PORT_CALLED_LAST_30DAY;
+				SET reqAsstHeader.PortsCalledDuringTheLast30DaysDetails.PortName = Environment.Variables.Result14[1].PORT_CALLED_LAST_30DAY;
+				SET reqAsstHeader.PortsCalledDuringTheLast30DaysDetails.Country = Environment.Variables.Result14[1].PORT_CALLED_LAST_30DAY;
+				SET reqAsstHeader.PortsCalledDuringTheLast30DaysDetails.DepartureDateISTTime = Environment.Variables.Result14[1].PORT_CALLED_LAST_30DAY;
+			ELSE
+				SET reqAsstHeader.PortsCalledDuringTheLast30DaysDetails = Environment.Variables.Result14[1].PORT_CALLED_LAST_30DAY;
+			END IF;
+
+			IF (Environment.Variables.Result15[1].COME_FRM_YELLOWFVR_AREA = 'Y') THEN
+				SET reqAsstHeader.ComingFromYellowFeverEndemicCountry.PortCode = Environment.Variables.Result15[1].COME_FRM_YELLOWFVR_AREA;
+				SET reqAsstHeader.ComingFromYellowFeverEndemicCountry.PortName = Environment.Variables.Result15[1].COME_FRM_YELLOWFVR_AREA;
+				SET reqAsstHeader.ComingFromYellowFeverEndemicCountry.Country = Environment.Variables.Result15[1].COME_FRM_YELLOWFVR_AREA;
+				SET reqAsstHeader.ComingFromYellowFeverEndemicCountry.DepartureDateISTTime = Environment.Variables.Result15[1].COME_FRM_YELLOWFVR_AREA;
+			ELSE
+				SET reqAsstHeader.ComingFromYellowFeverEndemicCountry = Environment.Variables.Result15[1].COME_FRM_YELLOWFVR_AREA;
+			END IF;
+
+			SET reqAsstHeader.PersonRescuedFromSeaOnBoard = Environment.Variables.Result15[1].PERSON_RESCUED_ON_BOARD;
+
+			SET reqAsstHeader.StowawayOnBoard = Environment.Variables.Result16[1].STOWAWAY_ON_BOARD;
+
+			SET reqAsstHeader.CrewOrPassengerEmbarkedInTheLast30Days = Environment.Variables.Result17[1].CREWPSNGER_EMBARKED;
+			SET reqAsstHeader.PetAnimalsOnBoard = Environment.Variables.Result17[1].ANIMALS_ON_BOARD;
+			SET reqAsstHeader.AnyRatsorMiceonBoard = Environment.Variables.Result17[1].RATS_OR_MICE_ON_BOARD;
+			SET reqAsstHeader.AnyCrewWithIllnessTreatedByMedicalPratitionerLastOneMonth = Environment.Variables.Result17[1].CREW_TREATED_BY_MP;
+			SET reqAsstHeader.DeathOnBoard = Environment.Variables.Result17[1].DEATH_ON_BOARD;
+			SET reqAsstHeader.CurrentSicknessOnBoard = Environment.Variables.Result17[1].CURRENT_SICKNESS_BOARD;
+			SET reqAsstHeader.AnyConditionWhichCanLeadToInfectionOrSpreadOfDiseaseDuringVoyageDetails = Environment.Variables.Result1[1].AnyConditionInfectionOrSpreadOfDiseaseDuringVoyage;
+            --SET reqAsstHeader.AnyConditionInfectionOrSpreadOfDiseaseDuringVoyage = Environment.Variables.Result1[1].AnyConditionInfectionOrSpreadOfDiseaseDuringVoyage;
+			SET reqAsstHeader.AnySanitaryMeasuresAppliedLastOneMonth = Environment.Variables.Result1[1].AnySanitaryMeasuresAppliedLastOneMonth;
+			
+			SET reqAsstHeader.AnySanitaryMeasuresAppliedLastOneMonth = Environment.Variables.Result1[1].AnySanitaryMeasuresAppliedLastOneMonth;
+            SET reqAsstHeader.FreshWaterRequired = Environment.Variables.Result1[1].FreshWaterRequired;
+            SET reqAsstHeader.ProvisionsRequirement = Environment.Variables.Result1[1].ProvisionsRequirement;
+            SET reqAsstHeader.SludgeDisposal = Environment.Variables.Result1[1].SludgeDisposal;
+            SET reqAsstHeader.GarbageDisposal = Environment.Variables.Result1[1].GarbageDisposal;
+           
+		  --SET reqAsstHeader.ShippingAgentDetails = Environment.Variables.Result17[1].ShippingAgentDetails;
+            SET reqAsstHeader.ShippingAgentDetails.ShippingAgentCode = Environment.Variables.Result1[1].ShippingAgentCod;
+            SET reqAsstHeader.ShippingAgentDetails.NameoftheShippingAgency = Environment.Variables.Result18[1].SHIPPING_AGENTNAME;
+            SET reqAsstHeader.ShippingAgentDetails.ShippingAgentMobileNo = Environment.Variables.Result18[1].SHIPPING_AGENTCONTACTNUMBER;
+            SET reqAsstHeader.ShippingAgentDetails.ShippingAgentEmailId = Environment.Variables.Result18[1].SHIPPING_AGENT_EMAILID;
+            
+			SET OutputRoot.XMLNSC.RequestForFreePratique.DocumentSummary.IssuedDateTime = Environment.Variables.Result12[1].IssuedDateTime;
+		END IF;
+	END;
+END MODULE;
+
+
+CREATE COMPUTE MODULE PILOT_Get_REQFPQ_Data_failureResponse_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE errorCode CHARACTER;
+		DECLARE errorText CHARACTER;
+		IF (EXISTS(InputExceptionList.RecoverableException.RecoverableException.RecoverableException.RecoverableException.ParserException.ParserException[])) THEN
+			SET errorCode = InputExceptionList.RecoverableException.RecoverableException.RecoverableException.RecoverableException.ParserException.ParserException.Number;
+			SET errorText = InputExceptionList.RecoverableException.RecoverableException.RecoverableException.RecoverableException.ParserException.ParserException.Text;
+		ELSEIF (EXISTS(InputExceptionList.RecoverableException.DatabaseException.DatabaseException.DatabaseException[])) THEN
+			SET errorCode = InputExceptionList.RecoverableException.DatabaseException.DatabaseException.DatabaseException.Number;
+			SET errorText = InputExceptionList.RecoverableException.DatabaseException.DatabaseException.DatabaseException.Insert[3].Text;
+		ELSEIF (Environment.variables.noResultbyProcedure = TRUE) THEN
+			SET errorCode = 'ERR01';
+			SET errorText = 'No resultset obtained from EDI_GetFormatTypeByRefAndMsg procedure';
+		ELSEIF (EXISTS(InputExceptionList.RecoverableException.RecoverableException.RecoverableException[])) THEN
+			SET errorCode = InputExceptionList.RecoverableException.RecoverableException.RecoverableException.Number;
+			SET errorText = InputExceptionList.RecoverableException.RecoverableException.RecoverableException.Text;
+		ELSE
+			SET errorCode = 'ERR01';
+			SET errorText = 'ESB exception occurred';
+		END IF;
+
+		DECLARE currTime CHARACTER CURRENT_TIMESTAMP;
+		SET currTime = REPLACE(currTime,'TIMESTAMP ','');
+		SET currTime = SUBSTRING(currTime BEFORE '.');
+		SET currTime = SUBSTRING(currTime FROM 2);
+		SET OutputRoot.XMLNSC.MQI_ERRORS.UserExceptionTree.Executiongroup = ExecutionGroupLabel;
+		DECLARE userExcepRef REFERENCE TO OutputRoot.XMLNSC.MQI_ERRORS.UserExceptionTree;
+		SET userExcepRef.Brokername = BrokerName;
+		SET userExcepRef.FlowName = MessageFlowLabel;
+		SET userExcepRef.ErrorCode = errorCode;
+		SET userExcepRef.ErrorText = errorText;
+
+
+		SET OutputRoot.XMLNSC.MQI_ERRORS.TIMESTAMP = currTime;
+
+		SET OutputRoot.XMLNSC.MQI_ERRORS.MsgBody = Environment.variables.request;
+
+		SET OutputRoot.XMLNSC.MQI_ERRORS.ExceptionList = InputExceptionList;
+
+		DECLARE outputBlob BLOB ASBITSTREAM(OutputRoot.XMLNSC, 549,1208);
+		DECLARE outputChar CHARACTER CAST(outputBlob AS CHARACTER CCSID 1208);
+		CALL EDI_InsIIBError(outputChar);
+		COMMIT;
+
+		RETURN TRUE;
+	END;
+	CREATE PROCEDURE EDI_InsIIBError( IN errorXML CHARACTER)
+	LANGUAGE DATABASE
+	DYNAMIC RESULT SETS 0
+	EXTERNAL NAME "dbo.EDI_InsIIBError";
+END MODULE;
+
+
+CREATE COMPUTE MODULE PILOT_Get_REQFPQ_Data_fileCreation_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		IF (EXISTS(InputRoot.XMLNSC[])) THEN
+			DECLARE outputBlob BLOB ASBITSTREAM(InputRoot.XMLNSC, 549,1208);
+			DECLARE ReplaceCarriageReturn BLOB X'0d0a';
+			SET outputBlob = REPLACE(outputBlob, ReplaceCarriageReturn);
+			SET Environment.Variables.charData = CAST(outputBlob AS CHARACTER CCSID 1208);
+			SET OutputRoot.XMLNSC = xmlBeautify(Environment.Variables.charData);
+			SET OutputRoot.XMLNSC.root = SUBSTRING(OutputRoot.XMLNSC AFTER '?>');
+			DECLARE stringOut BLOB;
+			SET stringOut = CAST(OutputRoot.XMLNSC.root as BLOB CCSID 1208);
+			IF (STARTSWITH(Environment.Variables.Result2[1].SFTP_PATH, 'http')) THEN
+				DECLARE jreq CHARACTER Environment.Variables.charData;
+				CREATE FIELD OutputRoot.JSON.Data.ReqHeader;
+				SET OutputRoot.JSON.Data.ReqHeader.Channel_ID = 'IndianPCS';
+				SET OutputRoot.JSON.Data.ReqHeader.Service_ID = '7057';
+				SET OutputRoot.JSON.Data.ReqHeader.Request_ID = Environment.variables.txnID;
+				SET Environment.reqDate = PASSTHRU('SELECT CURRENT_TIMESTAMP AS WebReq');
+				SET OutputRoot.JSON.Data.ReqHeader.Request_Date = CAST(Environment.reqDate[1].WebReq AS CHARACTER);
+				SET OutputRoot.JSON.Data.ReqHeader.Request_Date = REPLACE(OutputRoot.JSON.Data.ReqHeader.Request_Date,'TIMESTAMP ','');
+				SET OutputRoot.JSON.Data.ReqHeader.Request_Date = SUBSTRING(OutputRoot.JSON.Data.ReqHeader.Request_Date FROM 2 FOR 10);
+				SET OutputRoot.JSON.Data.ReqHeader.Request_Date = REPLACE(OutputRoot.JSON.Data.ReqHeader.Request_Date,'-','');
+				SET OutputRoot.JSON.Data.ReqBody.XML = jreq;
+				SET OutputLocalEnvironment.Destination.HTTP.RequestURL = Environment.Variables.Result2[1].SFTP_PATH;
+				SET Environment.variables.APIPort = Environment.Variables.XMLResultHD[1].PortCode;
+				SET Environment.variables.APICall = TRUE;
+				SET Environment.variables.AuditSeq = PASSTHRU('SELECT NEXT VALUE FOR IPAOWNER.TPCS_AUDIT_API_SEQ AS SEQ;');
+				INSERT INTO Database.PCSIBM.TIBM_LOG_AUDIT_API(API_Request_ID,API_Channel_ID,API_Request_Date,SITE_ID,MS_REF_NO,MSG_TYPE,MSG_DIRECTION,API_URL,API_TIMESTAMP,TRM_STATUS,PAYLOAD_OUT,AUDITSEQ)
+				VALUES(Environment.variables.txnID,'IndianPCS',CURRENT_TIMESTAMP,Environment.variables.APIPort,Environment.variables.txnID,'REQFPQ','OUTBOUND',Environment.Variables.XMLResultFID[1].SFTP_PATH,CURRENT_TIMESTAMP,'0',jreq,Environment.variables.AuditSeq[1].SEQ);
+				COMMIT;
+				PROPAGATE TO TERMINAL 'out1';
+				RETURN FALSE;
+			END IF;
+
+			SET OutputRoot.BLOB.BLOB = stringOut;
+			SET OutputLocalEnvironment.Destination.File.Name = 'REQFPQ' || Environment.variables.txnID || '.xml';
+			SET OutputLocalEnvironment.Destination.File.Remote.ServerDirectory = Environment.Variables.Result2[1].SFTP_PATH;
+		ELSEIF (EXISTS(InputRoot.DFDL[])) THEN
+			SET OutputRoot = InputRoot;
+			SET OutputRoot.Properties.MessageType ='{}:REQFPQ';
+			SET OutputRoot.Properties.MessageSet ='{JMB_DFDL}';
+			SET OutputLocalEnvironment.Destination.File.Name = 'REQFPQ' || Environment.variables.txnID || '.txt';
+			SET OutputLocalEnvironment.Destination.File.Remote.ServerDirectory = Environment.Variables.TXTResult2[1].SFTP_PATH;
+		END IF;
+
+		SET Environment.variables.fileName = OutputLocalEnvironment.Destination.File.Name;
+		SET Environment.variables.fileDirectory = OutputLocalEnvironment.Destination.File.Remote.ServerDirectory;
+	END;
+	CREATE PROCEDURE xmlBeautify( IN unformattedXML CHARACTER)
+	RETURNS CHARACTER
+	LANGUAGE JAVA
+	EXTERNAL NAME "com.portall.xmlBeautify.XmlBeautifier.prettyFormat";
+END MODULE;
+
+CREATE COMPUTE MODULE PILOT_Get_REQFPQ_Data_mailSMSCall_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET Environment.variables.mailStartTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS MAILSTARTTIME;');
+		SET Environment.variables.mailEndTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS MAILENDTIME;');
+		SET Environment.variables.SMSStartTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS SMSSTARTTIME;');
+
+		DECLARE response BLOB ASBITSTREAM(InputRoot.JSON.Data, 549,1208);
+		DECLARE ReplaceCarriageReturn BLOB X'0d0a';
+		DECLARE crlf CHAR CAST(CAST('X''0A''' AS BLOB) AS CHAR CCSID 1208);
+		SET response = REPLACE(response, ReplaceCarriageReturn);
+		SET Environment.variables.response = CAST(response AS CHARACTER CCSID 1208);
+		IF (Environment.variables.APICall = TRUE) THEN
+			UPDATE Database.PCSIBM.TIBM_LOG_AUDIT_API AS SP SET TRM_STATUS = '1', RES_PAYLOAD = Environment.variables.response WHERE SP.MS_REF_NO = Environment.variables.txnID AND SP.AUDITSEQ = Environment.variables.AuditSeq[1].SEQ;
+			COMMIT;
+		END IF;
+		IF Environment.Flag = 'Y' THEN
+			IF Environment.Format = 'XML' THEN
+				---------------------------------------------------------------------Submitted------------------------------------------------------------------------------------
+				IF (Environment.Variables.Result1.ApprovalStatus = 'Submitted') THEN
+					SET Environment.TemplateSA = 'Dear '||COALESCE(Environment.Variables.Result1.SenderName,'') ||','||' your Request For Pratique has been submitted.' ||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.Result1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.Result1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.Result1.VCN,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.Result1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.Result1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.Result1.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePA = 'Dear PHO a Request For Pratique has been submitted.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.Result1.CommonRefNumber,'') ||crlf||
+					'Shipping Agent Name: '||COALESCE(Environment.Variables.Result1.SenderName,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.Result1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.Result1.VCN,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.Result1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.Result1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.Result1.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+					
+					SET Environment.TemplatePO = 'Dear Port Authority,'||crlf||
+					'A Request for Free Pratique has been submitted by' ||Environment.Variables.Result1.SenderName||' to PHO.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.Result1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.Result1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.Result1.VCN,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.Result1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.Result1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.Result1.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+					
+					IF (Environment.Variables.Result2.Port_Email_Id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.Result2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.Result2[K].Port_Email_Id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.Result2[K].Port_Email_Id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Request For Free Pratique has been Submitted for Vessel '||COALESCE(Environment.Variables.Result1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePO;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+
+					IF (Environment.Variables.Result2.Email_id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.Result2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.Result2[K].Email_id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.Result2[K].Email_id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Pratique has been submitted for vessel '||COALESCE(Environment.Variables.Result1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					IF (LENGTH(Environment.Variables.Result1.Sender_Email_id) <> 0) THEN
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.Variables.Result1.Sender_Email_id;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Pratique has been submitted for vessel '||COALESCE(Environment.Variables.Result1.VesselName,'')||'.'; --'SUBJECT';----
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					----------------------------------------------------------------Rejected-------------------------------------------------------------------------------------
+				ELSEIF (Environment.Variables.Result1.ApprovalStatus = 'Rejected') THEN
+					SET Environment.TemplateSA = 'Dear '||COALESCE(Environment.Variables.Result1.SenderName,'') ||','||' your Request For Pratique has been rejected.' ||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.Result1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.Result1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.Result1.VCN,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.Result1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.Result1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.Result1.SubmissionDateTime,'') ||crlf||
+					'Reason For Rejection: '||COALESCE(Environment.Variables.Result1.ReasonForRejection,'') ||crlf||
+					'Rejection Date & Time: '||COALESCE(Environment.Variables.Result1.RejectionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePA = 'Dear PHO a Request For Pratique has been rejected.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.Result1.CommonRefNumber,'') ||crlf||
+					'Shipping Agent Name: '||COALESCE(Environment.Variables.Result1.SenderName,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.Result1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.Result1.VCN,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.Result1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.Result1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.Result1.SubmissionDateTime,'') ||crlf||
+					'Reason For Rejection: '||COALESCE(Environment.Variables.Result1.ReasonForRejection,'') ||crlf||
+					'Rejection Date & Time: '||COALESCE(Environment.Variables.Result1.RejectionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+					
+					SET Environment.TemplatePO = 'Dear Port Authority,'||crlf||
+					'The Request for Free Pratique submitted by' ||Environment.Variables.Result1.SenderName||' has been rejected by PHO'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.Result1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.Result1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.Result1.VCN,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.Result1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.Result1.Trade,'') ||crlf||
+					'Reason For Rejection: '||COALESCE(Environment.Variables.Result1.ReasonForRejection,'') ||crlf||
+					'Rejection Date & Time: '||COALESCE(Environment.Variables.Result1.RejectionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+					
+					IF (Environment.Variables.Result2.Port_Email_Id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.Result2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.Result2[K].Port_Email_Id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.Result2[K].Port_Email_Id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Free Pratique Request has been Rejected for Vessel '||COALESCE(Environment.Variables.Result1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePO;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+
+					IF (Environment.Variables.Result2.Email_id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.Result2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.Result2[K].Email_id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.Result2[K].Email_id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Pratique has been rejected for vessel '||COALESCE(Environment.Variables.Result1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					IF (LENGTH(Environment.Variables.Result1.Sender_Email_id) <> 0) THEN
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.Variables.Result1.Sender_Email_id;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Pratique has been rejected for vessel '||COALESCE(Environment.Variables.Result1.VesselName,'')||'.'; --'SUBJECT';----
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					---------------------------------------------------------------------ReSubmitted------------------------------------------------------------------------------------
+				ELSEIF (Environment.Variables.Result1.ApprovalStatus = 'ReSubmitted') THEN
+					SET Environment.TemplateSA = 'Dear '||COALESCE(Environment.Variables.Result1.SenderName,'') ||','||' your Request For Pratique has been ReSubmitted.' ||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.Result1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.Result1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.Result1.VCN,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.Result1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.Result1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.Result1.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePA = 'Dear PHO a Request For Pratique has been ReSubmitted.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.Result1.CommonRefNumber,'') ||crlf||
+					'Shipping Agent Name: '||COALESCE(Environment.Variables.Result1.SenderName,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.Result1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.Result1.VCN,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.Result1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.Result1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.Result1.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+					
+					SET Environment.TemplatePO = 'Dear Port Authority,'||crlf||
+					'A Request for Free Pratique has been Resubmitted by' ||Environment.Variables.Result1.SenderName||' to PHO.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.Result1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.Result1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.Result1.VCN,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.Result1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.Result1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.Result1.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+					
+					IF (Environment.Variables.Result2.Port_Email_Id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.Result2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.Result2[K].Port_Email_Id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.Result2[K].Port_Email_Id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Request For Free Pratique has been ReSubmitted for Vessel '||COALESCE(Environment.Variables.Result1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePO;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+
+					IF (Environment.Variables.Result2.Email_id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.Result2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.Result2[K].Email_id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.Result2[K].Email_id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Pratique has been ReSubmitted for vessel '||COALESCE(Environment.Variables.Result1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					IF (LENGTH(Environment.Variables.Result1.Sender_Email_id) <> 0) THEN
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.Variables.Result1.Sender_Email_id;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Pratique has been ReSubmitted for vessel '||COALESCE(Environment.Variables.Result1.VesselName,'')||'.'; --'SUBJECT';----
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+				END IF;
+				-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+			ELSEIF Environment.Format = 'TXT' THEN
+				---------------------------------------------------------------------Submitted------------------------------------------------------------------------------------
+				IF (Environment.Variables.TXTResult1.ApprovalStatus = 'Submitted') THEN
+					SET Environment.TemplateSA = 'Dear '||COALESCE(Environment.Variables.TXTResult1.SenderName,'') ||','||' your Request For Pratique has been submitted.' ||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.TXTResult1.VCN,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePA = 'Dear PHO a Request For Pratique has been submitted.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Shipping Agent Name: '||COALESCE(Environment.Variables.TXTResult1.SenderName,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.TXTResult1.VCN,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+					
+					SET Environment.TemplatePO = 'Dear Port Authority,'||crlf||
+					'A Request for Free Pratique has been submitted by' ||Environment.Variables.TXTResult1.SenderName||' to PHO.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.TXTResult1.VCN,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+					
+					IF (Environment.Variables.TXTResult2.Port_Email_Id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.TXTResult2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.TXTResult2[K].Port_Email_Id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.TXTResult2[K].Port_Email_Id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Request For Free Pratique has been Submitted for Vessel '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePO;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+
+					IF (Environment.Variables.TXTResult2.Email_id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.TXTResult2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.TXTResult2[K].Email_id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.TXTResult2[K].Email_id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Pratique has been submitted for vessel '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					IF (LENGTH(Environment.Variables.TXTResult1.Sender_Email_id) <> 0) THEN
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.Variables.TXTResult1.Sender_Email_id;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Pratique has been submitted for vessel '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';----
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					-------------------------------------------------------------------------------------Rejected-------------------------------------------------------------------------------------
+				ELSEIF (Environment.Variables.TXTResult1.ApprovalStatus = 'Rejected') THEN
+					SET Environment.TemplateSA = 'Dear '||COALESCE(Environment.Variables.TXTResult1.SenderName,'') ||','||' your Request For Pratique has been rejected.' ||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.TXTResult1.VCN,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||
+					'Reason For Rejection: '||COALESCE(Environment.Variables.TXTResult1.ReasonForRejection,'') ||crlf||
+					'Rejection Date & Time: '||COALESCE(Environment.Variables.TXTResult1.RejectionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePA = 'Dear PHO a Request For Pratique has been rejected.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Shipping Agent Name: '||COALESCE(Environment.Variables.TXTResult1.SenderName,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.TXTResult1.VCN,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||
+					'Reason For Rejection: '||COALESCE(Environment.Variables.TXTResult1.ReasonForRejection,'') ||crlf||
+					'Rejection Date & Time: '||COALESCE(Environment.Variables.TXTResult1.RejectionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+					
+					SET Environment.TemplatePO = 'Dear Port Authority,'||crlf||
+					'The Request for Free Pratique submitted by' ||Environment.Variables.TXTResult1.SenderName||' has been rejected by PHO'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.TXTResult1.VCN,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Reason For Rejection: '||COALESCE(Environment.Variables.TXTResult1.ReasonForRejection,'') ||crlf||
+					'Rejection Date & Time: '||COALESCE(Environment.Variables.TXTResult1.RejectionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+					
+					IF (Environment.Variables.TXTResult2.Port_Email_Id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.TXTResult2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.TXTResult2[K].Port_Email_Id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.TXTResult2[K].Port_Email_Id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Free Pratique Request has been Rejected for Vessel '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePO;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+
+					IF (Environment.Variables.TXTResult2.Email_id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.TXTResult2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.TXTResult2[K].Email_id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.TXTResult2[K].Email_id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Pratique has been rejected for vessel '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					IF (LENGTH(Environment.Variables.TXTResult1.Sender_Email_id) <> 0) THEN
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.Variables.TXTResult1.Sender_Email_id;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Pratique has been rejected for vessel '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';----
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					---------------------------------------------------------------------ReSubmitted------------------------------------------------------------------------------------
+				ELSEIF (Environment.Variables.TXTResult1.ApprovalStatus = 'ReSubmitted') THEN
+					SET Environment.TemplateSA = 'Dear '||COALESCE(Environment.Variables.TXTResult1.SenderName,'') ||','||' your Request For Pratique has been ReSubmitted.' ||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.TXTResult1.VCN,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePA = 'Dear PHO a Request For Pratique has been ReSubmitted.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Shipping Agent Name: '||COALESCE(Environment.Variables.TXTResult1.SenderName,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.TXTResult1.VCN,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+					
+					SET Environment.TemplatePO = 'Dear Port Authority,'||crlf||
+					'A Request for Free Pratique has been Resubmitted by' ||Environment.Variables.TXTResult1.SenderName||' to PHO.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.TXTResult1.VCN,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+					
+					IF (Environment.Variables.TXTResult2.Port_Email_Id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.TXTResult2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.TXTResult2[K].Port_Email_Id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.TXTResult2[K].Port_Email_Id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Request For Free Pratique has been ReSubmitted for Vessel '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePO;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+
+					IF (Environment.Variables.TXTResult2.Email_id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.TXTResult2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.TXTResult2[K].Email_id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.TXTResult2[K].Email_id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Pratique has been ReSubmitted for vessel '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					IF (LENGTH(Environment.Variables.TXTResult1.Sender_Email_id) <> 0) THEN
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.Variables.TXTResult1.Sender_Email_id;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Pratique has been ReSubmitted for vessel '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';----
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+				END IF;
+			END IF;
+
+		END IF;
+	END;
+END MODULE;
+
+CREATE COMPUTE MODULE PILOT_Get_REQFPQ_Data_auditDetails_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET Environment.variables.ediEndTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS EDIENDTIME;');
+		DECLARE ediEndTime CHARACTER CAST(Environment.variables.ediEndTime[1].EDIENDTIME AS CHARACTER);
+		SET ediEndTime = REPLACE(ediEndTime,'TIMESTAMP ','');
+		-- SET ediEndTime = SUBSTRING(mailStartTime BEFORE '.');
+		SET ediEndTime = SUBSTRING(ediEndTime FROM 2 FOR 23);
+
+		DECLARE ediStartTime CHARACTER CAST(Environment.variables.ediStartTime[1].EDISTARTTIME AS CHARACTER);
+		DECLARE mailStartTime CHARACTER CAST(Environment.variables.mailStartTime[1].MAILSTARTTIME AS CHARACTER);
+		DECLARE mailEndTime CHARACTER CAST(Environment.variables.mailEndTime[1].MAILENDTIME AS CHARACTER);
+		DECLARE dbStartTime CHARACTER CAST(Environment.variables.dbStartTime[1].DBSTARTTIME AS CHARACTER);
+		DECLARE dbEndTime CHARACTER CAST(Environment.variables.dbEndTime[1].DBENDTIME AS CHARACTER);
+		DECLARE SMSStartTime CHARACTER CAST(Environment.variables.SMSStartTime[1].SMSSTARTTIME AS CHARACTER);
+
+		SET ediStartTime = REPLACE(ediStartTime,'TIMESTAMP ','');
+		SET ediStartTime = SUBSTRING(ediStartTime FROM 2 FOR 23);
+
+		SET mailStartTime = REPLACE(mailStartTime,'TIMESTAMP ','');
+		SET mailStartTime = SUBSTRING(mailStartTime FROM 2 FOR 23);
+
+		SET mailEndTime = REPLACE(mailEndTime,'TIMESTAMP ','');
+		SET mailEndTime = SUBSTRING(mailEndTime FROM 2 FOR 23);
+
+		SET SMSStartTime = REPLACE(SMSStartTime,'TIMESTAMP ','');
+		SET SMSStartTime = SUBSTRING(SMSStartTime FROM 2 FOR 23);
+
+		SET dbStartTime = REPLACE(dbStartTime,'TIMESTAMP ','');
+		SET dbStartTime = SUBSTRING(dbStartTime FROM 2 FOR 23);
+
+		SET dbEndTime = REPLACE(dbEndTime,'TIMESTAMP ','');
+		SET dbEndTime = SUBSTRING(dbEndTime FROM 2 FOR 23);
+
+		DECLARE messageSender CHARACTER;
+		DECLARE emailId CHARACTER;
+		DECLARE mobileNumber CHARACTER;
+		IF (Environment.Variables.Result[1].FileFormat = 'XML' OR Environment.Variables.Result56[1].FileFormat = 'XML') THEN
+			SET messageSender = Environment.Variables.Result1[1].SenderID;
+			SET emailId = Environment.Variables.Result2[1].Email_id;
+			SET mobileNumber = Environment.Variables.Result2[1].Mobile;
+		ELSE
+			SET messageSender = Environment.Variables.TXTResult1[1].SenderID;
+			SET emailId = Environment.Variables.TXTResult2[1].Email_id;
+			SET mobileNumber = Environment.Variables.TXTResult2[1].Mobile;
+		END IF;
+
+		SET OutputRoot.XMLNSC.PCS_Audit.Header.MS_REF_NO = Environment.variables.txnID;
+		DECLARE headerRef REFERENCE TO OutputRoot.XMLNSC.PCS_Audit.Header;
+		SET headerRef.MSG_UID = UUIDASCHAR;
+		IF (Environment.Variables.Result[1].FileFormat = 'XML' OR Environment.Variables.Result56[1].FileFormat = 'XML') THEN
+			SET headerRef.MSG_TYPE = 'REQFPQ_XML_OUT';
+		ELSE
+			SET headerRef.MSG_TYPE = 'REQFPQ_TXT_OUT';
+		END IF;
+		SET headerRef.MSG_TIME = ediStartTime;
+		SET headerRef.MSG_SNDR = messageSender;
+		SET headerRef.PORT_CODE = Environment.PCS_Audit.Header.PORT_CODE;
+		--SET headerRef.PORT_CODE = SUBSTRING(headerRef.PORT_CODE BEFORE '/');
+		SET OutputRoot.XMLNSC.PCS_Audit.Details.Message.EDI_START_TS = ediStartTime;
+		DECLARE messageRef REFERENCE TO OutputRoot.XMLNSC.PCS_Audit.Details.Message;
+		SET messageRef.EDI_END_TS = ediEndTime;
+		IF (Environment.Variables.Result[1].FileFormat = 'XML' OR Environment.Variables.Result56[1].FileFormat = 'XML') THEN
+			SET messageRef.FILE_NAME = Environment.Variables.Result2.FILE_NAME;
+			SET messageRef.EDI_DIRECTORY_INFO = Environment.Variables.Result2.SFTP_PATH;
+		ELSE
+			SET messageRef.FILE_NAME = Environment.Variables.TXTResult2.FILE_NAME;
+			SET messageRef.EDI_DIRECTORY_INFO = Environment.Variables.TXTResult2.SFTP_PATH;
+		END IF;
+		SET OutputRoot.XMLNSC.PCS_Audit.Details.Email.MAIL_START_TS = mailStartTime;
+		DECLARE emailRef REFERENCE TO OutputRoot.XMLNSC.PCS_Audit.Details.Email;
+		SET emailRef.MAILING_ID = emailId;
+		SET emailRef.MAIL_NOTIFICATION_STATUS = 'SENT';
+		SET emailRef.MAIL_END_TS = mailEndTime;
+
+		SET OutputRoot.XMLNSC.PCS_Audit.Details.SMS.SMS_START_TS = SMSStartTime;
+		DECLARE smsRef REFERENCE TO OutputRoot.XMLNSC.PCS_Audit.Details.SMS;
+		SET smsRef.SMS_NOTIFICATION_NO = mobileNumber;
+		SET smsRef.SMS_NOTIFICATION_STATUS = 'Not Sent';
+
+		SET OutputRoot.XMLNSC.PCS_Audit.Details.Database.DB_SP_START_TS = dbStartTime;
+		DECLARE databaseRef REFERENCE TO OutputRoot.XMLNSC.PCS_Audit.Details.Database;
+		SET databaseRef.DB_SP_END_TS = dbEndTime;
+		SET databaseRef.DB_SP_STATUS = 'S';
+		SET databaseRef.DB_SP_REMARK = 'Executed successfully';
+
+		DECLARE outputBlob BLOB ASBITSTREAM(OutputRoot.XMLNSC, 549,1208);
+		DECLARE outputChar CHARACTER CAST(outputBlob AS CHARACTER CCSID 1208);
+		CALL EDI_InsIIBAudit(outputChar);
+		COMMIT;
+	END;
+
+	CREATE PROCEDURE EDI_InsIIBAudit( IN auditXML CHARACTER)
+	LANGUAGE DATABASE
+	DYNAMIC RESULT SETS 0
+	EXTERNAL NAME "dbo.EDI_InsIIBAudit";
+END MODULE;
+
+
+CREATE COMPUTE MODULE REQFPQ_ErrorUpdate_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE blobdata BLOB;
+		DECLARE resp,crmno CHARACTER;
+		-- SET blobdata = ASBITSTREAM(InputRoot.JSON.Data);
+		SET resp = CAST(InputRoot.BLOB.BLOB as character ccsid 1208);
+		SET crmno = Environment.variables.txnID;
+		UPDATE Database.PCSIBM.TIBM_LOG_AUDIT_API AS SP SET TRM_STATUS = '0',RES_PAYLOAD = resp WHERE SP.MS_REF_NO = crmno AND SP.AUDITSEQ = Environment.variables.AuditSeq[1].SEQ;
+		COMMIT;
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;

@@ -1,0 +1,17 @@
+
+
+CREATE COMPUTE MODULE JMB_AuditGeneration_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE inputXML CHAR;
+
+		Set inputXML = CAST(InputRoot.BLOB.BLOB as char CCSID 1208);
+		Set inputXML = REPLACE(inputXML, 'encoding="utf-8"', 'encoding="utf-16"');
+
+		CALL EDI_InsIIBAudit(inputXML);
+		RETURN FALSE;
+	END;
+
+CREATE PROCEDURE EDI_InsIIBAudit(IN p1 CHARACTER) LANGUAGE DATABASE EXTERNAL NAME "dbo.EDI_InsIIBAudit";
+
+END MODULE;

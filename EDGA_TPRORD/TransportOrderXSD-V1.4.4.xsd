@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Version:1.0; Release Date:18/07/2016  -->
+<xsd:schema id="TransportOrder" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+<xsd:element name="TransportOrder" type="TransportOrderType"/>
+	<xsd:complexType name="DocumentHeaderType">
+		<xsd:sequence>
+			<xsd:element name="DocumentReference" type="DocumentReferenceType"/>
+			<xsd:element name="DocumentExchangeDetails" type="DocumentExchangeDetailsType"/>
+		</xsd:sequence>
+	</xsd:complexType>
+
+	<xsd:complexType name="DocumentReferenceType">
+		<xsd:sequence>
+			<xsd:element name="DocumentType" type="xsd:string"/>
+			<xsd:element name="DocumentName" type="xsd:string" minOccurs="1"/>
+			<xsd:element name="DocumentNumber" type="xsd:string" minOccurs="1"/>
+			<xsd:element name="CommonRefNumber" type="xsd:string" minOccurs="1"/>
+			<xsd:element name="MessageType" type="MessageType" minOccurs="1"/>
+			<xsd:element name="SenderID" type="xsd:string" minOccurs="1"/>
+			<xsd:element name="PortCode" type="xsd:string" minOccurs="1" />
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="DocumentExchangeDetailsType">
+		<xsd:sequence>
+			<xsd:element name="ReceivingPartyDetails" type="ReceivingPartyDetailsType"/>
+			<xsd:element name="NotifiedPartyDetails" type="NotifiedPartyDetailsType" minOccurs="0"/>
+		</xsd:sequence>
+	</xsd:complexType>
+
+	<xsd:complexType name="TransportOrderType">
+		<xsd:sequence>
+			<xsd:element name="DocumentHeader" type="DocumentHeaderType"/>
+			<xsd:element name="DocumentDetails" type="DocumentDetailsType"/>
+			<xsd:element name="DocumentSummary" type="DocumentSummaryType"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	
+	
+	<xsd:complexType name="DocumentDetailsType">
+		<xsd:sequence>
+			<xsd:element name="TransportOrderDetails" type="TransportOrderDetailsType"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="TransportOrderDetailsType">
+		<xsd:sequence>
+			<xsd:element name="RecordType" type="RecordType"/>
+			<xsd:element name="TONumber" type="NameTextType"/>
+			<xsd:element name="TransporterRegNumber" type="NameTextType"/>
+			<xsd:element name="TransporterName" type="NameType"/>
+			<xsd:element name="DONumber" type="NameTextType"/>
+			<xsd:element name="DODate" type="DateType"/>
+			<xsd:element name="ValidUpTo" type="DateType" minOccurs="0"/>
+			<xsd:element name="VCN" type="VCNType"/>
+			<xsd:element name="IMONumber" type="CodeIDNameTextType"/>
+			<xsd:element name="TOIssuedBy" type="NameTextType"/>
+			<xsd:element name="TOIssuedDateAndTime" type="DateTimeType"/>
+			<xsd:element name="TOAckDateAndTime" type="DateTimeType"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	
+	<xsd:complexType name="ReceivingPartyDetailsType">
+		<xsd:sequence>
+			<xsd:element name="ReceivingParty" type="SendingReceivingNotifyPartyType" maxOccurs="99"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="NotifiedPartyDetailsType">
+		<xsd:sequence>
+			<xsd:element name="NotifyParty" type="SendingReceivingNotifyPartyType" minOccurs="0" maxOccurs="99"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="DocumentSummaryType">
+		<xsd:sequence>
+			<xsd:element name="IssuedDateTime" type="TimeStampType"/>
+		</xsd:sequence>
+	</xsd:complexType>
+
+	<xsd:simpleType name="SendingReceivingNotifyPartyType">
+		<xsd:restriction base="xsd:string">
+			<xsd:minLength value="1"/>
+			<xsd:maxLength value="35"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	
+	<xsd:simpleType name="MessageType">
+		<xsd:restriction base="xsd:string">
+			<xsd:minLength value="1"/>
+			<xsd:maxLength value="3"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="RecordType">
+		<xsd:restriction base="xsd:string">
+			<xsd:pattern value="[A-Z]"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="NameTextType">
+		<xsd:restriction base="xsd:string">
+			<xsd:minLength value="1"/>
+			<xsd:maxLength value="20"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="DateType">
+		<xsd:restriction base="xsd:token">
+			<xsd:pattern value="(0[1-9]|[12][0-9]|3[01])(0[1-9]|1[012])(18|19|20|21)\d\d"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="VCNType">
+		<xsd:restriction base="xsd:string">
+			<xsd:minLength value="1"/>
+			<xsd:maxLength value="14"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="CodeIDNameTextType">
+		<xsd:restriction base="xsd:string">
+			<xsd:minLength value="1"/>
+			<xsd:maxLength value="10"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="DateTimeType">
+		<xsd:restriction base="xsd:token">
+			<xsd:pattern value="(0[1-9]|[12][0-9]|3[01])(0[1-9]|1[012])(18|19|20|21)\d\d:([0-1][0-9]|[2][0-3]):([0-5][0-9])"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="TimeStampType">
+		<xsd:restriction base="xsd:token">
+			<xsd:pattern value="(0[1-9]|[12][0-9]|3[01])(0[1-9]|1[012])(18|19|20|21)\d\d([0-1][0-9]|[2][0-3])([0-5][0-9])([0-5][0-9])"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<xsd:simpleType name="NameType">
+		<xsd:restriction base="xsd:string">
+			<xsd:minLength value="1"/>
+			<xsd:maxLength value="50"/>
+		</xsd:restriction>
+	</xsd:simpleType>
+</xsd:schema>

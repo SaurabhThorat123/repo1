@@ -1,0 +1,293 @@
+
+
+
+
+
+
+CREATE COMPUTE MODULE LFPPRQ_MAIN_edi_gen
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE TransactionId,Format CHARACTER;
+		DECLARE jreq CHARACTER;
+		DECLARE MsRefno CHARACTER;
+		DECLARE I,count,bargecount,J INTEGER 1;
+		SET TransactionId = InputRoot.JSON.Data.JMB.EDI.Common_Ref;
+		SET Format = InputRoot.JSON.Data.JMB.EDI.Format;
+		SET MsRefno = CAST(TransactionId AS CHARACTER CCSID 1208);
+		SET Environment.PCS_Audit.Header.MS_REF_NO = TransactionId;
+		SET Environment.PCS_Audit.Header.MSG_UID = UUIDASCHAR;
+		SET Environment.PCS_Audit.Header.MSG_TYPE = MessageFlowLabel;
+		SET Environment.PCS_Audit.Header.MSG_TIME = CURRENT_TIMESTAMP;
+		SET Environment.PCS_Audit.Header.MSG_SNDR = BrokerUserId;
+		SET Environment.MsRefno = TransactionId;
+		SET Environment.Inputtype = InputRoot.JSON.Data.JMB.EDI.Action_In;
+		SET Environment.PCS_Audit.Database.DB_SP_START_TS = CURRENT_TIMESTAMP;
+		CALL EDI_XGetLFPPRQ(TransactionId, Environment.CalinfHeader[],Environment.ReceivingParty[],Environment.NotifyParty[],Environment.IssuedDateTime[]);
+
+		SET Environment.PCS_Audit.Header.PORT_CODE = Environment.CalinfHeader.PortCode;
+		SET Environment.PCS_Audit.Database.DB_SP_END_TS = CURRENT_TIMESTAMP;
+
+		IF (Environment.CalinfHeader.ApprovalStatus = 'Granted') THEN
+			SET Environment.variables.APICall = FALSE;
+			SET Environment.PCS_Audit.Details.Message.EDI_START_TS = CURRENT_TIMESTAMP;
+			SET Environment.PCS_Audit.Database.DB_SP_REMARK = 'S';
+			SET Environment.PCS_Audit.Database.DB_SP_STATUS = 'Executed Successfully';
+			SET Environment.PCS_Audit.Header.Status = 'Submitted';
+			SET Environment.PCS_Audit.Details.Message.FILE_NAME = Environment.ReceivingParty.FILE_NAME;
+			SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Environment.ReceivingParty.SFTP_PATH;
+
+
+			DECLARE outRef REFERENCE TO OutputRoot.XMLNSC.LimitedFreePratiquePermission;
+			CREATE FIRSTCHILD OF OutputRoot.XMLNSC AS outRef NAME 'LimitedFreePratiquePermission';
+
+			SET outRef.DocumentHeader.DocumentReference.DocumentType = COALESCE(Environment.CalinfHeader.DocumentType,'');
+			SET outRef.DocumentHeader.DocumentReference.DocumentName = COALESCE(Environment.CalinfHeader.DocumentName,'');
+			IF (LENGTH(Environment.CalinfHeader.DocumentNumber) > 0) THEN
+				SET outRef.DocumentHeader.DocumentReference.DocumentNumber = COALESCE(Environment.CalinfHeader.DocumentNumber,'');
+			END IF;
+			SET outRef.DocumentHeader.DocumentReference.CommonRefNumber = COALESCE(Environment.CalinfHeader.CommonRefNumber,'');
+			SET outRef.DocumentHeader.DocumentReference.MessageType = COALESCE(Environment.CalinfHeader.Messagetype,'');
+			SET outRef.DocumentHeader.DocumentReference.SenderID = COALESCE(Environment.CalinfHeader.SenderID,'');
+
+			DECLARE PortCount INTEGER CARDINALITY(Environment.ReceivingParty[]);
+			--DECLARE count INTEGER 1;
+
+			WHILE (count <= PortCount) DO
+				SET outRef.DocumentHeader.DocumentExchangeDetails.ReceivingPartyDetails.ReceivingParty[count] = COALESCE(Environment.ReceivingParty[count].ReceivingParty,'');
+				SET count = count + 1;
+			END WHILE ;
+
+			DECLARE PortCount1 INTEGER CARDINALITY(Environment.NotifyParty[]);
+			DECLARE count1 INTEGER 1;
+
+			WHILE (count1 <= PortCount1) DO
+				SET outRef.DocumentHeader.DocumentExchangeDetails.NotifyPartyDetails.NotifyParty[count1] = COALESCE(Environment.NotifyParty[count1].NotifyParty,'');
+				SET count1 = count1 + 1;
+			END WHILE ;
+
+
+			SET outRef.DocumentDetails.LimitedFreePratiquePermissionDetails.RecordType = COALESCE(Environment.CalinfHeader.RecordType,'');
+			SET outRef.DocumentDetails.LimitedFreePratiquePermissionDetails.VCN = COALESCE(Environment.CalinfHeader.VCN,'');
+			SET outRef.DocumentDetails.LimitedFreePratiquePermissionDetails.CallSignVesselCode = COALESCE(Environment.CalinfHeader.CallSign,'');
+			SET outRef.DocumentDetails.LimitedFreePratiquePermissionDetails.IMONo = COALESCE(Environment.CalinfHeader.IMONumber,'');
+			SET outRef.DocumentDetails.LimitedFreePratiquePermissionDetails.VoyageNo = COALESCE(Environment.CalinfHeader.VoyageNumber,'');
+			SET outRef.DocumentDetails.LimitedFreePratiquePermissionDetails.MasterName = COALESCE(Environment.CalinfHeader.MasterName,'');
+			SET outRef.DocumentDetails.LimitedFreePratiquePermissionDetails.TypeOfPratique = COALESCE(Environment.CalinfHeader.TypeOfPratique,'');
+			SET outRef.DocumentDetails.LimitedFreePratiquePermissionDetails.FreePartiquePermission = COALESCE(Environment.CalinfHeader.FreePartiquePermission,'');
+			SET outRef.DocumentDetails.LimitedFreePratiquePermissionDetails.Comments = COALESCE(Environment.CalinfHeader.Comments,'');
+			-- IF (LENGTH(Environment.CalinfHeader.ServiceName) <> 0) THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.ServiceName = Environment.CalinfHeader.ServiceName;
+			-- END IF;
+			--
+			-- SET outRef.DocumentDetails.LimitedFreePratiquePermissionDetails.RecordType = COALESCE(Environment.CalinfHeader.OriginalPortOfDep,'');
+			-- SET outRef.DocumentDetails.LimitedFreePratiquePermissionDetails.VCN = COALESCE(Environment.CalinfHeader.LastPortOfCall,'');
+			-- SET outRef.DocumentDetails.LimitedFreePratiquePermissionDetails.CallSignVesselCode = COALESCE(Environment.CalinfHeader.ExpectedDraftInMeter,'');
+			-- SET outRef.DocumentDetails.LimitedFreePratiquePermissionDetails.IMONo = COALESCE(Environment.CalinfHeader.PurposeOfvisit,'');
+			-- SET outRef.DocumentDetails.LimitedFreePratiquePermissionDetails.VoyageNo = COALESCE(Environment.CalinfHeader.PurposeOfvisit,'');
+			-- SET outRef.DocumentDetails.LimitedFreePratiquePermissionDetails.MasterName = COALESCE(Environment.CalinfHeader.PurposeOfvisit,'');
+			-- SET outRef.DocumentDetails.LimitedFreePratiquePermissionDetails.TypeOfPratique = COALESCE(Environment.CalinfHeader.PurposeOfvisit,'');
+			-- SET outRef.DocumentDetails.LimitedFreePratiquePermissionDetails.FreePartiquePermission = COALESCE(Environment.CalinfHeader.PurposeOfvisit,'');
+			-- SET outRef.DocumentDetails.LimitedFreePratiquePermissionDetails.Comments = COALESCE(Environment.CalinfHeader.PurposeOfvisit,'');
+			--
+			--
+			-- IF LENGTH(Environment.CalinfHeader.TotalNoOf20IMP) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.TotalNoOf20IMP = Environment.CalinfHeader.TotalNoOf20IMP;
+			-- END IF;
+			--
+			-- IF LENGTH(Environment.CalinfHeader.TotalNoOf40IMP) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.TotalNoOf40IMP = Environment.CalinfHeader.TotalNoOf40IMP;
+			-- END IF;
+			-- IF LENGTH(Environment.CalinfHeader.TotalNoOf20EXP) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.TotalNoOf20EXP = Environment.CalinfHeader.TotalNoOf20EXP;
+			-- END IF;
+			-- IF LENGTH(Environment.CalinfHeader.TotalNoOf40EXP) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.TotalNoOf40EXP = Environment.CalinfHeader.TotalNoOf40EXP;
+			-- END IF;
+			-- IF LENGTH(Environment.CalinfHeader.TotalContTonnage) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.TotalContTonnage = Environment.CalinfHeader.TotalContTonnage;
+			-- END IF;
+			-- IF LENGTH(Environment.CalinfHeader.CargoDesc) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.CargoDesc = Environment.CalinfHeader.CargoDesc;
+			-- END IF;
+			-- IF LENGTH(Environment.CalinfHeader.OtherCargoTonnage) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.OtherCargoTonnage = Environment.CalinfHeader.OtherCargoTonnage;
+			-- END IF;
+			-- IF LENGTH(Environment.CalinfHeader.VoyageType) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.VoyageType = Environment.CalinfHeader.VoyageType;
+			-- END IF;
+			-- IF LENGTH(Environment.CalinfHeader.OperationType) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.OperationType = Environment.CalinfHeader.OperationType;
+			-- END IF;
+			-- IF LENGTH(Environment.CalinfHeader.DeckCargo) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.DeckCargo = Environment.CalinfHeader.DeckCargo;
+			-- END IF;
+			--
+			-- SET outRef.DocumentDetails.VoyageDetails.Status = COALESCE(Environment.CalinfHeader.STATUS,'');
+			--
+			-- IF LENGTH(Environment.CalinfHeader.BallastWithCargo) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.BallastWithCargo = Environment.CalinfHeader.BallastWithCargo;
+			-- END IF;
+			-- IF LENGTH(Environment.CalinfHeader.TradeChange) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.TradeChange = Environment.CalinfHeader.TradeChange;
+			-- END IF;
+			-- IF LENGTH(Environment.CalinfHeader.Berthing) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.Berthing = Environment.CalinfHeader.Berthing;
+			-- END IF;
+			-- IF LENGTH(Environment.CalinfHeader.BerthType) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.BerthType = Environment.CalinfHeader.BerthType;
+			-- END IF;
+			-- IF LENGTH(Environment.CalinfHeader.CharterName) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.CharterName = Environment.CalinfHeader.CharterName;
+			-- END IF;
+			-- IF LENGTH(Environment.CalinfHeader.CessPaid) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.CessPaid = Environment.CalinfHeader.CessPaid;
+			-- END IF;
+			-- IF LENGTH(Environment.CalinfHeader.CessPaidDate) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.CessPaidDate = Environment.CalinfHeader.CessPaidDate;
+			-- END IF;
+			-- IF LENGTH(Environment.CalinfHeader.CessValidity) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.CessValidity = Environment.CalinfHeader.CessValidity;
+			-- END IF;
+			-- IF LENGTH(Environment.CalinfHeader.CessPaidAtPort) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.CessPaidAtPort = Environment.CalinfHeader.CessPaidAtPort;
+			-- END IF;
+			-- IF LENGTH(Environment.CalinfHeader.DoubleBankingWillingness) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.DoubleBankingWillingness = Environment.CalinfHeader.DoubleBankingWillingness;
+			-- END IF;
+			-- IF LENGTH(Environment.CalinfHeader.NoofFenders) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.NoofFenders = Environment.CalinfHeader.NoofFenders;
+			-- END IF;
+			--
+			-- IF LENGTH(Environment.CalinfHeader.DumbVesselBargeTug) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.DumbVesselBargeTug = Environment.CalinfHeader.DumbVesselBargeTug;
+			-- ELSE
+			-- SET outRef.DocumentDetails.VoyageDetails.DumbVesselBargeTug = 'N';
+			-- END IF;
+			-- IF LENGTH(Environment.Barge.BargeTugIMONumber) <> 0 THEN
+			-- SET bargecount = CARDINALITY(Environment.Barge[]);
+			-- WHILE J<=bargecount DO
+			-- SET outRef.DocumentDetails.VoyageDetails.DumbVessels.BargeTugIMONumber[J] = Environment.Barge[J].BargeTugIMONumber;
+			-- SET J=J+1;
+			-- END WHILE;
+			-- END IF;
+			-- DECLARE cargoCount INTEGER CARDINALITY(Environment.CargoDetails[]);
+			-- SET count = 1;
+			--
+			-- WHILE (count <= cargoCount) DO
+			-- SET outRef.DocumentDetails.VoyageDetails.CargoSummary.CargoDetails[count].RecordType = COALESCE(Environment.CargoDetails[count].RecordType,'');
+			-- SET outRef.DocumentDetails.VoyageDetails.CargoSummary.CargoDetails[count].TypeOfCargo = COALESCE(Environment.CargoDetails[count].TypeOfCargo,'');
+			-- IF LENGTH(Environment.CalinfHeader.IECodeDetails) <> 0 THEN
+			-- SET outRef.DocumentDetails.VoyageDetails.IECodeDetails = Environment.CalinfHeader.IECodeDetails;
+			-- END IF;
+			-- SET count = count + 1;
+			-- END WHILE ;
+
+			SET outRef.DocumentSummary.IssuedDateTime = COALESCE(Environment.IssuedDateTime.IssuedDateTime,'');
+
+			SET Environment.PCS_Audit.Details.Message.EDI_END_TS = CURRENT_TIMESTAMP;
+			--SET Environment.PCS_Audit.Details.Message.FILE_NAME= Environment.ReceivingParty.FILE_NAME;
+			--SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Environment.ReceivingParty.SFTP_PATH;
+
+			IF Format = 'Text' THEN
+				SET OutputLocalEnvironment.Destination.File.Name=Environment.ReceivingParty.FILE_NAME;
+				SET Environment.calinf[] = PASSTHRU('select FTP_PATH from IPAOWNER.XX_TPCS_DOC_PORT_MAP where SITE_ID = ? AND MSG_TYPE = ? AND IS_ACTIVE = ?','IMAC','CALINF','1');
+				SET OutputLocalEnvironment.Destination.File.Remote.ServerDirectory=Environment.calinf.FTP_PATH;
+				SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Environment.calinf.FTP_PATH;
+				SET Environment.Flag = 'Y';
+				SET Environment.Format = 'Text';
+				PROPAGATE TO TERMINAL 'out' DELETE NONE;
+				RETURN FALSE;
+			END IF;
+
+--			ELSEIF(Environment.CalinfHeader.ApprovalStatus = 'Rejected') THEN
+--
+--			SET Environment.variables.APICall = FALSE;
+--			SET Environment.Format = 'XML';
+--			SET Environment.PCS_Audit.Details.Message.EDI_START_TS = CURRENT_TIMESTAMP;
+--			SET Environment.PCS_Audit.Database.DB_SP_REMARK = 'S';
+--			SET Environment.PCS_Audit.Database.DB_SP_STATUS = 'Executed Successfully';
+--			SET Environment.PCS_Audit.Header.Status = 'Submitted';
+--			SET Environment.PCS_Audit.Details.Message.FILE_NAME = Environment.ReceivingParty.FILE_NAME;
+--			SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Environment.ReceivingParty.SFTP_PATH;
+--			SET Environment.Flag = 'Y';
+--
+--			DECLARE egName CHARACTER ExecutionGroupLabel;
+--			DECLARE brkName CHARACTER BrokerName;
+--			DECLARE msgFlwName CHARACTER MessageFlowLabel;
+--			DECLARE request BLOB ASBITSTREAM(InputRoot.JSON.Data, 549,1208);
+--			DECLARE ReplaceCarriageReturn BLOB X'0d0a';
+--			SET request = REPLACE(request, ReplaceCarriageReturn);
+--			SET Environment.variables.request = CAST(request AS CHARACTER CCSID 1208);
+--
+--			INSERT INTO Database.PCSIBM.TIBM_LOG_ERROR (Executiongroup,Brokername,FlowName,ErrorCode,ErrorText,ErrorDate,MsgBody,XMLDATA,CREATED_DT,MS_REF_NO,EVENT_NAME,PORT_CODE)
+--			VALUES('PCS_WEBSER','PCS_UAT_II',msgFlwName,'ERR101','HLTDLR Request for Approved status',CURRENT_TIMESTAMP,Environment.variables.request,'NA',CURRENT_TIMESTAMP,TransactionId,'Generation',Environment.PCS_Audit.Header.PORT_CODE);
+--
+--
+--			PROPAGATE TO TERMINAL 'out1';
+--			RETURN FALSE;
+
+--			ELSEIF(Environment.CalinfHeader.ApprovalStatus = 'ReSubmitted') THEN
+--
+--			SET Environment.variables.APICall = FALSE;
+--			SET Environment.Format = 'XML';
+--			SET Environment.PCS_Audit.Details.Message.EDI_START_TS = CURRENT_TIMESTAMP;
+--			SET Environment.PCS_Audit.Database.DB_SP_REMARK = 'S';
+--			SET Environment.PCS_Audit.Database.DB_SP_STATUS = 'Executed Successfully';
+--			SET Environment.PCS_Audit.Header.Status = 'Submitted';
+--			SET Environment.PCS_Audit.Details.Message.FILE_NAME = Environment.ReceivingParty.FILE_NAME;
+--			SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Environment.ReceivingParty.SFTP_PATH;
+--			SET Environment.Flag = 'Y';
+--
+--			DECLARE egName CHARACTER ExecutionGroupLabel;
+--			DECLARE brkName CHARACTER BrokerName;
+--			DECLARE msgFlwName CHARACTER MessageFlowLabel;
+--			DECLARE request BLOB ASBITSTREAM(InputRoot.JSON.Data, 549,1208);
+--			DECLARE ReplaceCarriageReturn BLOB X'0d0a';
+--			SET request = REPLACE(request, ReplaceCarriageReturn);
+--			SET Environment.variables.request = CAST(request AS CHARACTER CCSID 1208);
+--
+--			INSERT INTO Database.PCSIBM.TIBM_LOG_ERROR (Executiongroup,Brokername,FlowName,ErrorCode,ErrorText,ErrorDate,MsgBody,XMLDATA,CREATED_DT,MS_REF_NO,EVENT_NAME,PORT_CODE)
+--			VALUES('PCS_WEBSER','PCS_UAT_II',msgFlwName,'ERR101','HLTDLR Request for Approved status',CURRENT_TIMESTAMP,Environment.variables.request,'NA',CURRENT_TIMESTAMP,TransactionId,'Generation',Environment.PCS_Audit.Header.PORT_CODE);
+--
+--
+--			PROPAGATE TO TERMINAL 'out1';
+--			RETURN FALSE;
+--
+--
+--			ELSEIF(Environment.CalinfHeader.ApprovalStatus = 'Submitted')THEN
+--
+--			SET Environment.variables.APICall = FALSE;
+--			SET Environment.Format = 'XML';
+--			SET Environment.PCS_Audit.Details.Message.EDI_START_TS = CURRENT_TIMESTAMP;
+--			SET Environment.PCS_Audit.Database.DB_SP_REMARK = 'S';
+--			SET Environment.PCS_Audit.Database.DB_SP_STATUS = 'Executed Successfully';
+--			SET Environment.PCS_Audit.Header.Status = 'Submitted';
+--			SET Environment.PCS_Audit.Details.Message.FILE_NAME = Environment.ReceivingParty.FILE_NAME;
+--			SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Environment.ReceivingParty.SFTP_PATH;
+--			SET Environment.Flag = 'Y';
+--
+--			DECLARE egName CHARACTER ExecutionGroupLabel;
+--			DECLARE brkName CHARACTER BrokerName;
+--			DECLARE msgFlwName CHARACTER MessageFlowLabel;
+--			DECLARE request BLOB ASBITSTREAM(InputRoot.JSON.Data, 549,1208);
+--			DECLARE ReplaceCarriageReturn BLOB X'0d0a';
+--			SET request = REPLACE(request, ReplaceCarriageReturn);
+--			SET Environment.variables.request = CAST(request AS CHARACTER CCSID 1208);
+--
+--			INSERT INTO Database.PCSIBM.TIBM_LOG_ERROR (Executiongroup,Brokername,FlowName,ErrorCode,ErrorText,ErrorDate,MsgBody,XMLDATA,CREATED_DT,MS_REF_NO,EVENT_NAME,PORT_CODE)
+--			VALUES('PCS_WEBSER','PCS_UAT_II',msgFlwName,'ERR101','HLTDLR Request for Approved status',CURRENT_TIMESTAMP,Environment.variables.request,'NA',CURRENT_TIMESTAMP,TransactionId,'Generation',Environment.PCS_Audit.Header.PORT_CODE);
+--
+--
+--			PROPAGATE TO TERMINAL 'out1';
+			--RETURN FALSE;
+
+			--PROPAGATE TO TERMINAL 'out';
+		END IF;
+
+	END;
+	CREATE PROCEDURE EDI_XGetLFPPRQ(IN p1 CHARACTER)
+	LANGUAGE DATABASE
+	DYNAMIC RESULT SETS 4
+	EXTERNAL NAME "dbo.EDI_XGetLFPPRQ";
+
+END MODULE;

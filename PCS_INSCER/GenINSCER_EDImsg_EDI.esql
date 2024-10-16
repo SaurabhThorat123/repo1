@@ -1,0 +1,154 @@
+
+
+CREATE COMPUTE MODULE GenINSCER_EDImsg_EDI
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE TransactionId,Format CHARACTER;
+		DECLARE jreq CHARACTER;
+		DECLARE MsRefno CHARACTER;
+		DECLARE I,count,bargecount,J INTEGER 1;
+		SET TransactionId = InputRoot.JSON.Data.JMB.EDI.Common_Ref;
+		SET Format = InputRoot.JSON.Data.JMB.EDI.Format;
+		SET MsRefno = CAST(TransactionId AS CHARACTER CCSID 1208);
+		SET Environment.PCS_Audit.Header.MS_REF_NO = TransactionId;
+		SET Environment.PCS_Audit.Header.MSG_UID = UUIDASCHAR;
+		SET Environment.PCS_Audit.Header.MSG_TYPE = MessageFlowLabel;
+		SET Environment.PCS_Audit.Header.MSG_TIME = CURRENT_TIMESTAMP;
+		SET Environment.PCS_Audit.Header.MSG_SNDR = BrokerUserId;
+		SET Environment.MsRefno = TransactionId;
+		SET Environment.Inputtype = InputRoot.JSON.Data.JMB.EDI.Action_In;
+		SET Environment.PCS_Audit.Database.DB_SP_START_TS = CURRENT_TIMESTAMP;
+
+		CALL EDI_XGetINSCER(TransactionId, Environment.HltdlrHeader[],Environment.ReceivingParty[],Environment.NotifyParty[],Environment.IssuedDateTime[]);
+
+		SET Environment.PCS_Audit.Header.PORT_CODE = Environment.HltdlrHeader.PortCode;
+		SET Environment.PCS_Audit.Database.DB_SP_END_TS = CURRENT_TIMESTAMP;
+
+		IF (Environment.HltdlrHeader.ApprovalStatus = 'Submitted') THEN
+			SET Environment.variables.APICall = FALSE;
+			SET Environment.PCS_Audit.Details.Message.EDI_START_TS = CURRENT_TIMESTAMP;
+			SET Environment.PCS_Audit.Database.DB_SP_REMARK = 'S';
+			SET Environment.PCS_Audit.Database.DB_SP_STATUS = 'Executed Successfully';
+			SET Environment.PCS_Audit.Header.Status = 'Submitted';
+			SET Environment.PCS_Audit.Details.Message.FILE_NAME = Environment.ReceivingParty.FILE_NAME;
+			SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Environment.ReceivingParty.SFTP_PATH;
+
+			DECLARE outRef REFERENCE TO OutputRoot.XMLNSC.HealthInspectionCertificate;
+			CREATE FIRSTCHILD OF OutputRoot.XMLNSC AS outRef NAME 'HealthInspectionCertificate';
+
+			SET outRef.DocumentHeader.DocumentReference.DocumentType = COALESCE(Environment.HltdlrHeader.DocumentType,'');
+			SET outRef.DocumentHeader.DocumentReference.DocumentName = COALESCE(Environment.HltdlrHeader.DocumentName,'');
+			IF (LENGTH(Environment.HltdlrHeader.DocumentNumber) > 0) THEN
+				SET outRef.DocumentHeader.DocumentReference.DocumentNumber = COALESCE(Environment.HltdlrHeader.DocumentNumber,'');
+			END IF;
+			SET outRef.DocumentHeader.DocumentReference.CommonRefNumber = COALESCE(Environment.HltdlrHeader.CommonRefNumber,'');
+			SET outRef.DocumentHeader.DocumentReference.MessageType = COALESCE(Environment.HltdlrHeader.MessageType,'');
+			SET outRef.DocumentHeader.DocumentReference.SenderID = COALESCE(Environment.HltdlrHeader.SenderID,'');
+
+			DECLARE PortCount INTEGER CARDINALITY(Environment.ReceivingParty[]);
+			--DECLARE count INTEGER 1;
+
+			WHILE (count <= PortCount) DO
+				SET outRef.DocumentHeader.DocumentExchangeDetails.ReceivingPartyDetails.ReceivingParty[count] = COALESCE(Environment.ReceivingParty[count].ReceivingParty,'');
+				SET count = count + 1;
+			END WHILE ;
+			
+			DECLARE PortCount1 INTEGER CARDINALITY(Environment.NotifyParty[]);
+			DECLARE count1 INTEGER 1;
+
+			WHILE (count1 <= PortCount1) DO
+				SET outRef.DocumentHeader.DocumentExchangeDetails.NotifyPartyDetails.NotifyParty[count1] = COALESCE(Environment.NotifyParty[count1].NotifyParty,'');
+				SET count1 = count1 + 1;
+			END WHILE ;
+
+
+			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.RecordType = COALESCE(Environment.HltdlrHeader.RecordType,'');
+			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.VCN = COALESCE(Environment.HltdlrHeader.VCN,'');
+--			IF (LENGTH(Environment.HltdlrHeader.CallSign) <> 0) THEN
+--				SET outRef.DocumentDetails.HealthInspectionCertificateDetails.CallSign = Environment.HltdlrHeader.CallSign;
+--			END IF;
+			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.CallSign = COALESCE(Environment.HltdlrHeader.CallSign,'');
+			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.IMONumber = COALESCE(Environment.HltdlrHeader.IMONumber,'');
+			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.VoyageNumber = COALESCE(Environment.HltdlrHeader.VoyageNumber,'');
+			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.CertificateOfHealthInspectionGranted = COALESCE(Environment.HltdlrHeader.CERT_OF_HEALTH_INSP_GRANTED,'');
+			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.HealthInspectionCertificateNo = COALESCE(Environment.HltdlrHeader.HEALTH_INSPECTION_CERT_NO,'');
+			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.HealthInspectionCertificateDate = COALESCE(Environment.HltdlrHeader.HEALTH_INSPECTION_CERT_DATE,'');
+			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.Instructions = COALESCE(Environment.HltdlrHeader.INSTRUCTIONS,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails."No.OfCrewEmbarked" = COALESCE(Environment.HltdlrHeader.NoOfCrewThro,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails."No.OfCrewDisembarked" = COALESCE(Environment.HltdlrHeader.NoOfCrewNew,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails."ShipSanitationCertificateNo." = COALESCE(Environment.HltdlrHeader.DERATTING_EXEMP_CERT_NO,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.DateofIssue = COALESCE(Environment.HltdlrHeader.DateOfIssue,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.UnusualMortalityOfRats = COALESCE(Environment.HltdlrHeader.UnusualMortalityOfRats,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.UnusualMortalityDetails = COALESCE(Environment.HltdlrHeader.UnusualMortalityDetails,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.ICPCertIssued = COALESCE(Environment.HltdlrHeader.ICPCertificateIssued,'');
+--            SET outRef.DocumentDetails.HealthInspectionCertificateDetails.ICPCertNo = COALESCE(Environment.HltdlrHeader.ICPCertificateNo,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.ICPCertIssueDate = COALESCE(Environment.HltdlrHeader.ICPCertificateIssueDate,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.ICPCertValidUpto = COALESCE(Environment.HltdlrHeader.ICPCertificateValidUpto,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails."MedicineChestCert.Place" = COALESCE(Environment.HltdlrHeader.MedicineChestCertNo,'');
+--            SET outRef.DocumentDetails.HealthInspectionCertificateDetails.MedicineChestCertDate = COALESCE(Environment.HltdlrHeader.MedicineChestCertDate,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.AnySickCrewDuringTheStayAtPort = COALESCE(Environment.HltdlrHeader.AnySicknessOfCrewDuringTheStayAtPort,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.AnyCrewSignedOffAndHospitalizedAtPort = COALESCE(Environment.HltdlrHeader.AnyCrewSignedOffOrHospitalizedAtPort,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.NatureOfSickness = COALESCE(Environment.HltdlrHeader.NatureOfSickness,'');
+--            SET outRef.DocumentDetails.HealthInspectionCertificateDetails.MedicalOfficerName = COALESCE(Environment.HltdlrHeader.MedicalOfficerName,'');
+--		
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails."MedicalOfficerMob." = COALESCE(Environment.HltdlrHeader.MedicalOfficerMob,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.EmailID = COALESCE(Environment.HltdlrHeader.EmailID,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.WhetherShipWasSuppliedWithWater = COALESCE(Environment.HltdlrHeader.WhetherShipWasSuppliedWithWater,'');
+--            SET outRef.DocumentDetails.HealthInspectionCertificateDetails.SupplierName = COALESCE(Environment.HltdlrHeader.SupplierName,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.Quantity = COALESCE(Environment.HltdlrHeader.Quantity,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.TypeOfSupply = COALESCE(Environment.HltdlrHeader.TypeOfSupply,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.WhetherShipProvisionSupplied = COALESCE(Environment.HltdlrHeader.WhetherShipProvisionSupplied,'');
+--            SET outRef.DocumentDetails.HealthInspectionCertificateDetails.ShipChandlersName = COALESCE(Environment.HltdlrHeader.ShipChandlersName,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.GarbageCollectorName = COALESCE(Environment.HltdlrHeader.GarbageCollectorName,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.SludgeDischarge = COALESCE(Environment.HltdlrHeader.SludgeDischarge,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.SludgeDischargeDetails = COALESCE(Environment.HltdlrHeader.SludgeDischargeDetails,'');
+--            SET outRef.DocumentDetails.HealthInspectionCertificateDetails.SewageDischarge = COALESCE(Environment.HltdlrHeader.SewageDischarge,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.SewageDischargeDetails = COALESCE(Environment.HltdlrHeader.SewageDischargeDetails,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.RadioFreePratiquePermissionGranted = COALESCE(Environment.HltdlrHeader.RadioFreePratiquePermissionGranted,'');
+--			SET outRef.DocumentDetails.HealthInspectionCertificateDetails.FreePratiquePermissionGranted = COALESCE(Environment.HltdlrHeader.FreePratiquePermissionGranted,'');
+--            
+--			
+--			
+			SET outRef.DocumentSummary.IssuedDateTime = COALESCE(Environment.IssuedDateTime.IssuedDateTime,'');
+
+			SET Environment.PCS_Audit.Details.Message.EDI_END_TS = CURRENT_TIMESTAMP;
+			--SET Environment.PCS_Audit.Details.Message.FILE_NAME= Environment.ReceivingParty.FILE_NAME;
+			--SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Environment.ReceivingParty.SFTP_PATH;
+
+			IF Format = 'Text' THEN
+				SET OutputLocalEnvironment.Destination.File.Name=Environment.ReceivingParty.FILE_NAME;
+				SET Environment.HltdlrHeader[] = PASSTHRU('select FTP_PATH from IPAOWNER.XX_TPCS_DOC_PORT_MAP where SITE_ID = ? AND MSG_TYPE = ? AND IS_ACTIVE = ?','IMAC','HLTDLR','1');
+				SET OutputLocalEnvironment.Destination.File.Remote.ServerDirectory=Environment.HltdlrHeader.FTP_PATH;
+				SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Environment.HltdlrHeader.FTP_PATH;
+				SET Environment.Flag = 'Y';
+				SET Environment.Format = 'Text';
+				PROPAGATE TO TERMINAL 'out' DELETE NONE;
+				RETURN FALSE;
+			END IF;
+
+			ELSEIF(Environment.HltdlrHeader.ApprovalStatus = 'Rejected') THEN
+			PROPAGATE TO TERMINAL 'out1';
+			RETURN FALSE;
+			ELSEIF(Environment.HltdlrHeader.ApprovalStatus = 'Approved')THEN
+			DECLARE egName CHARACTER ExecutionGroupLabel;
+			DECLARE brkName CHARACTER BrokerName;
+			DECLARE msgFlwName CHARACTER MessageFlowLabel;
+			DECLARE request BLOB ASBITSTREAM(InputRoot.JSON.Data, 549,1208);
+			DECLARE ReplaceCarriageReturn BLOB X'0d0a';
+			SET request = REPLACE(request, ReplaceCarriageReturn);
+			SET Environment.variables.request = CAST(request AS CHARACTER CCSID 1208);
+
+			INSERT INTO Database.PCSIBM.TIBM_LOG_ERROR (Executiongroup,Brokername,FlowName,ErrorCode,ErrorText,ErrorDate,MsgBody,XMLDATA,CREATED_DT,MS_REF_NO,EVENT_NAME,PORT_CODE)
+			VALUES('PCS_WEBSER','PCS_UAT_II',msgFlwName,'ERR101','CALINF Request for Approved status',CURRENT_TIMESTAMP,Environment.variables.request,'NA',CURRENT_TIMESTAMP,TransactionId,'Generation',Environment.PCS_Audit.Header.PORT_CODE);
+			RETURN FALSE;
+
+			PROPAGATE TO TERMINAL 'out';
+		END IF;
+
+	END;
+	CREATE PROCEDURE EDI_XGetINSCER(IN p1 CHARACTER)
+	LANGUAGE DATABASE
+	DYNAMIC RESULT SETS 4
+	EXTERNAL NAME "dbo.EDI_XGetINSCER";
+
+END MODULE;

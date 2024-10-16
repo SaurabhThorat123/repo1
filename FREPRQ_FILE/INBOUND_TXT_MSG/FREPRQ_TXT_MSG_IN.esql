@@ -1,0 +1,150 @@
+BROKER SCHEMA INBOUND_TXT_MSG
+
+
+DECLARE SFTP_TXT_Error_Path_FREPRQ EXTERNAL CHARACTER '';
+DECLARE SFTP_TXT_Server_FREPRQ EXTERNAL CHARACTER '';
+
+CREATE COMPUTE MODULE FREPRQ_TXT_MSG_IN_processFile_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET Environment.variables.ediStartTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS EDISTARTTIME;');	
+		
+		DECLARE inputTxt CHARACTER;
+		SET inputTxt = Cast(InputRoot.BLOB.BLOB AS CHARACTER CCSID 1208);
+		SET Environment.variables.filename = InputLocalEnvironment.File.Name;
+		
+		SET Environment.variables.dbStartTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS DBSTARTTIME;');
+		CALL Inbound_USP(inputTxt, Environment.Variable.results1[], Environment.Variable.results2[],Environment.Variable.results3[]);
+		COMMIT;
+		CALL EDI_GetTXTMsgGrpAsTable(inputTxt,'UNH', Environment.Variables.TresultSet1[], Environment.Variables.TresultSet2[], Environment.Variables.TresultSet3[], Environment.Variables.TresultSet4[], Environment.Variables.TresultSet5[], Environment.Variables.TresultSet6[]);
+		CALL EDI_TGetNotifyDetails('','FREPRQ',Environment.Variables.TresultSet3[5].ElementValue,Environment.Variables.TresultSet3[7].ElementValue,Environment.Variables.TresultSet6[1].RPDNames, Environment.Variables.NresultSet1[], Environment.Variables.NresultSet2[], Environment.Variables.NresultSet3[], Environment.Variables.NresultSet4[], Environment.Variables.NresultSet5[], Environment.Variables.NresultSet6[]);
+
+		SET Environment.variables.dbEndTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS DBENDTIME;');
+
+		SET Environment.variables.sftpPath = COALESCE(Environment.Variables.NresultSet2[1].SFTP_PATH,Environment.Variables.NresultSet1[1].SFTP_PATH);
+		SET Environment.variables.commonRefNo = Environment.Variables.TresultSet3[5].ElementValue;
+		SET Environment.variables.msgSender = Environment.Variables.TresultSet3[7].ElementValue;
+	
+		IF (Environment.Variable.results2.ErrorMessage = 'Failed') THEN
+			SET OutputLocalEnvironment.Destination.File.Remote.ServerDirectory = SFTP_TXT_Error_Path_FREPRQ;
+			SET OutputLocalEnvironment.Destination.File.Remote.Server = SFTP_TXT_Server_FREPRQ;
+			SET OutputLocalEnvironment.Destination.File.Name = Environment.variables.filename;
+		ELSE
+			SET OutputLocalEnvironment.Destination.File.Remote.ServerDirectory = Environment.variables.sftpPath;
+			SET OutputLocalEnvironment.Destination.File.Remote.Server = SFTP_TXT_Server_FREPRQ;
+			SET OutputLocalEnvironment.Destination.File.Name = Environment.variables.filename;
+		END IF;
+		SET OutputRoot.BLOB.BLOB = InputRoot.BLOB.BLOB;
+		
+		SET Environment.variables.ediDirectory = OutputLocalEnvironment.Destination.File.Remote.ServerDirectory;
+		
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE Inbound_USP (IN T CHARACTER)
+	LANGUAGE DATABASE
+	DYNAMIC RESULT SETS 3
+	EXTERNAL NAME "dbo.EDI_TUpdFREPRQ";
+	
+	CREATE PROCEDURE EDI_TGetNotifyDetails (IN Text CHARACTER, IN msgType CHARACTER, IN t1 CHARACTER, IN t2 CHARACTER, IN t3 CHARACTER)
+	LANGUAGE DATABASE
+	DYNAMIC RESULT SETS 6
+	EXTERNAL NAME "dbo.EDI_TGetNotifyDetails";
+
+	CREATE PROCEDURE EDI_GetTXTMsgGrpAsTable (IN Text CHARACTER, IN msgType CHARACTER)
+	LANGUAGE DATABASE
+	DYNAMIC RESULT SETS 6
+	EXTERNAL NAME "dbo.EDI_GetTXTMsgGrpAsTable";
+
+END MODULE;
+
+CREATE COMPUTE MODULE FREPRQ_TXT_MSG_IN_mailSMScall
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET Environment.variables.mailStartTime = CURRENT_TIMESTAMP;
+		SET Environment.variables.mailEndTime = CURRENT_TIMESTAMP;
+		SET Environment.variables.SMSStartTime = CURRENT_TIMESTAMP;
+	END;
+END MODULE;
+	
+CREATE COMPUTE MODULE FREPRQ_TXT_MSG_IN_auditdetails
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE inputTxt CHARACTER;
+		SET inputTxt = Cast(InputRoot.BLOB.BLOB AS CHARACTER CCSID 1208);
+
+		SET OutputRoot.XMLNSC.auditDetails.RefNo = Environment.variables.commonRefNo;
+		DECLARE auditDtlsRef REFERENCE TO OutputRoot.XMLNSC.auditDetails;
+		SET auditDtlsRef.msgUID = UUIDASCHAR;
+		SET auditDtlsRef.msgType = 'FREPRQ_TXT_IN';
+				SET auditDtlsRef.msgSender = Environment.variables.msgSender;
+		SET auditDtlsRef.portCode = SUBSTRING(Environment.variables.ediDirectory AFTER 'PORTS/');
+		SET auditDtlsRef.portCode = SUBSTRING(auditDtlsRef.portCode BEFORE '/');
+		SET auditDtlsRef.fileName = Environment.variables.filename;
+		SET auditDtlsRef.fileDirectory = Environment.variables.ediDirectory;
+		SET auditDtlsRef.MailId = COALESCE(Environment.Variables.NresultSet2[1].Email_id,Environment.Variables.NresultSet1[1].Email_id);
+		SET auditDtlsRef.mobileNo = COALESCE(Environment.Variables.NresultSet2[1].Mobile,Environment.Variables.NresultSet1[1].Mobile);
+
+		DECLARE ediStartTime CHARACTER  CAST(Environment.variables.ediStartTime[1].EDISTARTTIME AS CHARACTER);
+		DECLARE mailStartTime CHARACTER  CAST(Environment.variables.mailStartTime[1].MAILSTARTTIME AS CHARACTER);
+		DECLARE mailEndTime CHARACTER CAST(Environment.variables.mailEndTime[1].MAILENDTIME AS CHARACTER);
+		DECLARE dbStartTime CHARACTER  CAST(Environment.variables.dbStartTime[1].DBSTARTTIME AS CHARACTER);
+		DECLARE dbEndTime CHARACTER  CAST(Environment.variables.dbEndTime[1].DBENDTIME AS CHARACTER);
+		DECLARE SMSStartTime CHARACTER  CAST(Environment.variables.SMSStartTime[1].SMSSTARTTIME AS CHARACTER);
+		
+		SET ediStartTime = REPLACE(ediStartTime,'TIMESTAMP ','');
+		-- SET ediStartTime = SUBSTRING(ediStartTime BEFORE '.');
+		SET ediStartTime = SUBSTRING(ediStartTime FROM 2 FOR 23);
+		SET auditDtlsRef.ediStartTime = ediStartTime;
+
+		SET mailStartTime = REPLACE(mailStartTime,'TIMESTAMP ','');
+		-- SET mailStartTime = SUBSTRING(mailStartTime BEFORE '.');
+		SET mailStartTime = SUBSTRING(mailStartTime FROM 2 FOR 23);
+		SET auditDtlsRef.mailStartTime = mailStartTime;
+
+		SET mailEndTime = REPLACE(mailEndTime,'TIMESTAMP ','');
+		-- SET mailEndTime = SUBSTRING(mailEndTime BEFORE '.');
+		SET mailEndTime = SUBSTRING(mailEndTime FROM 2 FOR 23);
+		SET auditDtlsRef.mailEndTime = mailEndTime;
+
+		SET SMSStartTime = REPLACE(SMSStartTime,'TIMESTAMP ','');
+		-- SET SMSStartTime = SUBSTRING(SMSStartTime BEFORE '.');
+		SET SMSStartTime = SUBSTRING(SMSStartTime FROM 2 FOR 23);
+		SET auditDtlsRef.SMSStartTime = SMSStartTime;
+
+		SET dbStartTime = REPLACE(dbStartTime,'TIMESTAMP ','');
+		-- SET dbStartTime = SUBSTRING(dbStartTime BEFORE '.');
+		SET dbStartTime = SUBSTRING(dbStartTime FROM 2 FOR 23);
+		SET auditDtlsRef.dbStartTime = dbStartTime;
+
+		SET dbEndTime = REPLACE(dbEndTime,'TIMESTAMP ','');
+		-- SET dbEndTime = SUBSTRING(dbEndTime BEFORE '.');
+		SET dbEndTime = SUBSTRING(dbEndTime FROM 2 FOR 23);
+		SET auditDtlsRef.dbEndTime = dbEndTime;
+	END;
+
+END MODULE;
+
+CREATE COMPUTE MODULE FREPRQ_TXT_MSG_IN_failure
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET OutputRoot.XMLNSC.errorDetails.messageFlowName = MessageFlowLabel;
+		SET OutputRoot.XMLNSC.errorDetails.messageBody = CAST(InputRoot.BLOB.BLOB AS CHARACTER CCSID 1208);
+		SET OutputRoot.XMLNSC.errorDetails.messageBody = REPLACE(OutputRoot.XMLNSC.errorDetails.messageBody,' ','|');
+		SET OutputRoot.XMLNSC.errorDetails.exceptionList = InputExceptionList;
+
+		IF (EXISTS(InputExceptionList.RecoverableException.RecoverableException.RecoverableException.RecoverableException.ParserException.ParserException[])) THEN
+			SET OutputRoot.XMLNSC.errorDetails.ErrorCode = InputExceptionList.RecoverableException.RecoverableException.RecoverableException.RecoverableException.ParserException.ParserException.Number;
+			SET OutputRoot.XMLNSC.errorDetails.ErrorText = InputExceptionList.RecoverableException.RecoverableException.RecoverableException.RecoverableException.ParserException.ParserException.Text;
+		ELSEIF (EXISTS(InputExceptionList.RecoverableException.DatabaseException.DatabaseException.DatabaseException[])) THEN
+			SET OutputRoot.XMLNSC.errorDetails.ErrorCode = InputExceptionList.RecoverableException.DatabaseException.DatabaseException.DatabaseException.Number;
+			SET OutputRoot.XMLNSC.errorDetails.ErrorText = InputExceptionList.RecoverableException.DatabaseException.DatabaseException.DatabaseException.Insert[3].Text;
+		ELSEIF (EXISTS(InputExceptionList.RecoverableException.RecoverableException.RecoverableException[])) THEN
+			SET OutputRoot.XMLNSC.errorDetails.ErrorCode = InputExceptionList.RecoverableException.RecoverableException.RecoverableException.Number;
+			SET OutputRoot.XMLNSC.errorDetails.ErrorText = InputExceptionList.RecoverableException.RecoverableException.RecoverableException.Text;
+		END IF;
+
+		RETURN TRUE;
+	END;
+END MODULE;
+

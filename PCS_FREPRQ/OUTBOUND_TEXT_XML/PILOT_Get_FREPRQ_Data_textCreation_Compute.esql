@@ -1,0 +1,116 @@
+
+
+
+
+BROKER SCHEMA OUTBOUND_TEXT_XML
+
+
+CREATE COMPUTE MODULE PILOT_Get_FREPRQ_Data_textCreation_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+
+		DECLARE MsRefno CHAR;
+		SET MsRefno = CAST(Environment.variables.txnID AS CHARACTER CCSID 1208);
+		SET Environment.PCS_Audit.Header.MS_REF_NO = MsRefno;
+		SET Environment.Flag = 'Y';
+		SET Environment.Format = 'TXT';
+		SET Environment.PCS_Audit.Header.MSG_UID = UUIDASCHAR;
+		SET Environment.PCS_Audit.Header.MSG_TYPE = 'FREPRQ_TXT_OUT';
+		SET Environment.PCS_Audit.Header.MSG_TIME = CURRENT_TIMESTAMP;
+		SET Environment.PCS_Audit.Header.MSG_SNDR = BrokerUserId;
+
+		CALL EDI_TGetFREPRQ(Environment.variables.txnID,Environment.Variables.TXTResult1[],Environment.Variables.TXTResult2[],Environment.Variables.TXTResult3[],Environment.Variables.TXTResult4[],Environment.Variables.TXTResult5[],Environment.Variables.TXTResult6[],Environment.Variables.TXTResult7[],Environment.Variables.TXTResult8[],Environment.Variables.TXTResult9[],Environment.Variables.TXTResult10[],Environment.Variables.TXTResult11[],Environment.Variables.TXTResult12[],Environment.Variables.TXTResult13[]);
+
+		DECLARE PORT CHAR;
+		SET PORT = SUBSTRING(Environment.Variables.TXTResult2.SFTP_PATH AFTER 'PORTS/');
+		SET Environment.PCS_Audit.Header.PORT_CODE = SUBSTRING(PORT BEFORE '/');
+		SET Environment.PCS_Audit.Database.DB_SP_END_TS = CURRENT_TIMESTAMP;
+
+		SET Environment.variables.dbEndTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS DBENDTIME;');
+		SET OutputRoot.Properties.CodedCharSetId = 1208;
+
+		SET OutputRoot.Properties.MessageType ='{}:FREPRQ';
+		SET OutputRoot.Properties.MessageSet ='{JMB_DFDL}';
+		SET OutputRoot.Properties.ReplyProtocol = 'FILE';
+		--UNH
+
+		SET OutputRoot.DFDL.FREPRQ.UNH.DocumentType = Environment.Variables.TXTResult1[1].DocumentType;
+		SET OutputRoot.DFDL.FREPRQ.UNH.DocumentName = Environment.Variables.TXTResult1[1].DocumentName;
+		SET OutputRoot.DFDL.FREPRQ.UNH.DocumentNumber = Environment.Variables.TXTResult1[1].DocumentNumber;
+		SET OutputRoot.DFDL.FREPRQ.UNH.CommonRefNumber = Environment.Variables.TXTResult1[1].CommonRefNumber;
+		SET OutputRoot.DFDL.FREPRQ.UNH.MessageType = Environment.Variables.TXTResult1[1].Messagetype;
+		SET OutputRoot.DFDL.FREPRQ.UNH.SenderID = Environment.Variables.TXTResult2[1].ReceivingParty;
+		--RPD
+		DECLARE countRecord INTEGER 0;
+		DECLARE i INTEGER 1;
+
+		SET countRecord = CARDINALITY(Environment.Variables.TXTResult1[]);
+
+		WHILE countRecord > 0 DO
+			SET OutputRoot.DFDL.FREPRQ.RPD.RecipientsID[i] = Environment.Variables.TXTResult1[i].SenderID;
+			SET i = i + 1;
+			SET countRecord = countRecord - 1;
+		END WHILE;
+		-- NPD
+
+		DECLARE countRecord1 INTEGER 0;
+		DECLARE j INTEGER 1;
+
+		SET countRecord1 = CARDINALITY(Environment.Variables.TXTResult3[]);
+
+		WHILE countRecord1 > 0 DO
+			SET OutputRoot.DFDL.FREPRQ.NPD.NotifyPartyIDs[j] = Environment.Variables.TXTResult3[j].NotifyParty;
+			SET j = j + 1;
+			SET countRecord1 = countRecord1 - 1;
+		END WHILE;
+		--FPP
+		SET OutputRoot.DFDL.FREPRQ.FPP.RecordType = Environment.Variables.TXTResult1[1].RecordType;
+		SET OutputRoot.DFDL.FREPRQ.FPP.VCN = Environment.Variables.TXTResult1[1].VCN;
+		SET OutputRoot.DFDL.FREPRQ.FPP.CallSignVesselCode = Environment.Variables.TXTResult1[1].CallSign;
+		SET OutputRoot.DFDL.FREPRQ.FPP.IMONumber = Environment.Variables.TXTResult1[1].IMONumber;
+		SET OutputRoot.DFDL.FREPRQ.FPP.VoyageNumber = Environment.Variables.TXTResult1[1].VoyageNumber;
+		SET OutputRoot.DFDL.FREPRQ.FPP.VesselName = Environment.Variables.TXTResult1[1].VesselName;
+		SET OutputRoot.DFDL.FREPRQ.FPP.MasterName = Environment.Variables.TXTResult1[1].MasterName;
+		SET OutputRoot.DFDL.FREPRQ.FPP.FreePartiquePermission = Environment.Variables.TXTResult1[1].FreePartiquePermission;
+		IF (Environment.Variables.TXTResult1.TypeOfPratique <> '')THEN
+			SET OutputRoot.DFDL.FREPRQ.FPP.TypeOfPratique = Environment.Variables.TXTResult1[1].TypeOfPratique;
+		END IF;
+		IF (Environment.Variables.TXTResult1.CERTIFICATE_DISEASE_STATUS <> '')THEN
+			SET OutputRoot.DFDL.FREPRQ.FPP.InfectiousDiseasesStatus = Environment.Variables.TXTResult1[1].CERTIFICATE_DISEASE_STATUS;
+		END IF;
+		IF (Environment.Variables.TXTResult1.CERTIFICATE_DISEASE_COMMENTS <> '')THEN
+			SET OutputRoot.DFDL.FREPRQ.FPP.InfectiousDiseasesComment = Environment.Variables.TXTResult1[1].CERTIFICATE_DISEASE_COMMENTS;
+		END IF;
+		IF (Environment.Variables.TXTResult1.Comments <> '')THEN
+			SET OutputRoot.DFDL.FREPRQ.FPP.Comments = Environment.Variables.TXTResult1[1].Comments;
+		END IF;
+		-- SET OutputRoot.DFDL.FREPRQ.FPP.NoofPassengerNew = Environment.Variables.TXTResult4[1].NoOfPassengeNew;
+		-- SET OutputRoot.DFDL.FREPRQ.FPP.NoofCrewThro = Environment.Variables.TXTResult4[1].NoOfCrewThro;
+		-- SET OutputRoot.DFDL.FREPRQ.FPP.NoofCrewNew = Environment.Variables.TXTResult4[1].NoOfCrewNew;
+		-- SET OutputRoot.DFDL.FREPRQ.FPP.SSCCSSCECNo = Environment.Variables.TXTResult4[1].SSCC;
+		-- SET OutputRoot.DFDL.FREPRQ.FPP.DateofIssue = Environment.Variables.TXTResult4[1].DateOfIssue;
+		-- SET OutputRoot.DFDL.FREPRQ.FPP.UnusualmortalityofRats = Environment.Variables.TXTResult4[1].UnusualMortalityOfRats;
+		-- SET OutputRoot.DFDL.FREPRQ.FPP.Unusualmortalitydetails = Environment.Variables.TXTResult4[1].UnusualMortalityDetails;
+		-- SET OutputRoot.DFDL.FREPRQ.FPP.IndiaCrewProvisionCertificateissued = Environment.Variables.TXTResult4[1].ICPCertificateIssued;
+		-- SET OutputRoot.DFDL.FREPRQ.FPP.ICPCertificateNo = Environment.Variables.TXTResult4[1].ICPCertificateNo;
+		-- SET OutputRoot.DFDL.FREPRQ.FPP.ICPCertificateissuedate = Environment.Variables.TXTResult4[1].ICPCertificateIssueDate;
+		--
+		-- SET OutputRoot.DFDL.FREPRQ.FPP.ICPCertificateValidupto = Environment.Variables.TXTResult4[1].ICPCertificateValidUpto;
+		-- SET OutputRoot.DFDL.FREPRQ.FPP.MedicineChestCertNo = Environment.Variables.TXTResult4[1].MedicineChestCertNo;
+		-- SET OutputRoot.DFDL.FREPRQ.FPP.MedicineChestCertDate = Environment.Variables.TXTResult4[1].MedicineChestCertDate;
+		-- SET OutputRoot.DFDL.FREPRQ.FPP.AnysicknessofcrewduringthestayatPort = Environment.Variables.TXTResult4[1].AnySicknessOfCrewDuringTheStayAtPort;
+		-- SET OutputRoot.DFDL.FREPRQ.FPP.Anycrewsignedoffhospitalizedatport = Environment.Variables.TXTResult4[1].AnyCrewSignedOffOrHospitalizedAtPort;
+		-- SET OutputRoot.DFDL.FREPRQ.FPP.Natureofsickness = Environment.Variables.TXTResult4[1].NatureOfSickness;
+		-- SET OutputRoot.DFDL.FREPRQ.FPP.MedicalOfficerName = Environment.Variables.TXTResult4[1].MedicalOfficerName;
+		--UNT
+		SET OutputRoot.DFDL.FREPRQ.UNT.IssuedDateTime = Environment.Variables.TXTResult13[1].IssuedDateTime;
+
+
+	END;
+
+
+	CREATE PROCEDURE EDI_TGetFREPRQ( IN TransactionID CHARACTER)
+	LANGUAGE DATABASE
+	DYNAMIC RESULT SETS 13
+	EXTERNAL NAME "dbo.EDI_TGetFREPRQ";
+END MODULE;

@@ -1,0 +1,75 @@
+
+CREATE COMPUTE MODULE Pdbal_Txt_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE SQLState1, Template CHARACTER;
+		DECLARE SQLErrorText1 CHARACTER;
+		DECLARE SQLCode1 INTEGER;
+		DECLARE SQLNativeError1 INTEGER;
+		DECLARE EMAIL,Mobile,SFTPPATH,Filename CHARACTER;
+		declare DLSTRING CHARACTER;
+		set DLSTRING= CAST(x'1d' AS CHAR ccsid 1208);
+		declare transactionID,SenderId CHARACTER;
+
+		DECLARE RPDNames,Header CHARACTER;
+		set Header =InputRoot.DFDL.Pdabal.header.Values;
+
+		SET Environment.CT = CURRENT_TIMESTAMP;
+		SET Environment.PCS_Audit.Header.MS_REF_NO = InputLocalEnvironment.File.Name||CAST(Environment.CT as char FORMAT 'yyyy-dd-MM_HH:mm:ss');
+		SET Environment.PCS_Audit.Header.MSG_UID = UUIDASCHAR;
+		SET Environment.PCS_Audit.Header.MSG_TYPE =MessageFlowLabel;
+		SET Environment.PCS_Audit.Header.MSG_TIME = CURRENT_TIMESTAMP;
+		SET Environment.PCS_Audit.Header.MSG_SNDR = BrokerUserId;
+
+		DECLARE bPayload BLOB ASBITSTREAM(InputRoot.DFDL CCSID InputRoot.Properties.CodedCharSetId ENCODING InputRoot.Properties.Encoding);
+
+		DECLARE cPayload CHARACTER CAST (bPayload AS CHARACTER CCSID InputRoot.Properties.CodedCharSetId ENCODING InputRoot.Properties.Encoding);
+		--Make a database insert to a table for VESDEP
+
+		SET SQLState1 = SQLSTATE;
+		SET SQLCode1 = SQLCODE;
+		SET SQLErrorText1 = SQLERRORTEXT;
+		SET SQLNativeError1 = SQLNATIVEERROR;
+
+		IF SQLCode1 = 0 THEN
+			SET Environment.PCS_Audit.Details.Message.EDI_START_TS= CURRENT_TIMESTAMP;
+			SET Environment.PCS_Audit.Database.DB_SP_REMARK = 'S';
+			SET Environment.PCS_Audit.Database.DB_SP_STATUS = 'Executed Successfully';
+
+			SET Environment.PCS_Audit.Database.DB_SP_START_TS = CURRENT_TIMESTAMP;	
+			CALL EDI_TInsPDABAL(cPayload);
+			COMMIT;
+			SET Environment.PCS_Audit.Database.DB_SP_END_TS = CURRENT_TIMESTAMP;
+
+			DECLARE RPDNames CHARACTER;
+			set transactionID = SUBSTRING(SUBSTRING(SUBSTRING(SUBSTRING(Header AFTER DLSTRING) AFTER DLSTRING)AFTER DLSTRING)BEFORE DLSTRING) ;
+			set SenderId = SUBSTRING(SUBSTRING(SUBSTRING(SUBSTRING(SUBSTRING(Header AFTER DLSTRING) AFTER DLSTRING)AFTER DLSTRING)AFTER DLSTRING)AFTER DLSTRING) ;
+			SET RPDNames =REPLACE(InputRoot.DFDL.Pdabal.RPD.BodyValues,DLSTRING,',');
+
+
+
+			CALL EDI_TGetNotifyDetails ('','PDABAL',transactionID,SenderId,RPDNames,Environment.NOTIF[],Environment.RecievingParty[]);
+
+
+			SET EMAIL= Environment.RPDDetails.Email_id;
+			SET Mobile= Environment.RPDDetails.Mobile;
+			SET SFTPPATH= Environment.RecievingParty.SFTP_PATH;
+			SET Filename = InputLocalEnvironment.File.Name;
+			
+			SET Environment.PCS_Audit.Details.Message.FILE_NAME=Filename;
+			SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO=SFTPPATH;
+			SET Environment.PCS_Audit.Details.Message.EDI_END_TS=CURRENT_TIMESTAMP;
+			SET Environment.PCS_Audit.Header.PORT_CODE=Environment.NOTIF[1].PortCode;
+			SET OutputRoot=InputRoot;
+
+			SET OutputLocalEnvironment.Destination.File.Remote.ServerDirectory=SFTPPATH;
+			SET OutputLocalEnvironment.Destination.File.Name=Filename;
+		ELSE
+			SET Environment.JMB_Audit.Header.DB_SP_REMARK = 'F';
+			THROW USER EXCEPTION MESSAGE 2950 VALUES( 'The SQL State' , SQLState1 , SQLCode1 , SQLNativeError1 , SQLErrorText1 );
+		END IF;
+	END;
+
+	CREATE PROCEDURE EDI_TInsPDABAL (IN p1 CHARACTER) LANGUAGE DATABASE EXTERNAL NAME "dbo.EDI_TInsPDABAL";
+	CREATE PROCEDURE EDI_TGetNotifyDetails(IN p1 CHARACTER,IN P2 CHARACTER,IN P3 CHARACTER,IN P4 CHARACTER,IN P5 CHARACTER) LANGUAGE DATABASE DYNAMIC RESULT SETS 2 EXTERNAL NAME "dbo.EDI_TGetNotifyDetails";
+END MODULE;

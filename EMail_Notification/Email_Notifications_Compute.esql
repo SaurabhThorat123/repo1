@@ -1,0 +1,16 @@
+CREATE COMPUTE MODULE Email_Notifications_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		
+		SET Environment.PCS_Audit.Details.Header = InputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header;
+		SET Environment.PCS_Audit.Details.Email.MAIL_START_TS = CURRENT_TIMESTAMP;
+		SET Environment.PCS_Audit.Details.Email.MAILING_ID = InputRoot.JSON.Data.JMBNotification.EmailDetails.To;		
+	
+		DECLARE emailcheck,Emailtxt,EmailTo,EmailFrom CHARACTER;
+		SET OutputRoot.EmailOutputHeader.To = InputRoot.JSON.Data.JMBNotification.EmailDetails.To;
+		SET OutputRoot.EmailOutputHeader.Subject = InputRoot.JSON.Data.JMBNotification.EmailDetails.From;
+		SET OutputRoot.BLOB.BLOB = CAST(InputRoot.JSON.Data.JMBNotification.EmailDetails.Template as BLOB CCSID 1208 encoding 546);
+		PROPAGATE TO TERMINAL 'out';
+		RETURN FALSE;
+	END;
+END MODULE;

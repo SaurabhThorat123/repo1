@@ -1,0 +1,133 @@
+<xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="MMDInspectionReport">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="DocumentHeader">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="DocumentReference">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element type="xs:string" name="DocumentType"/>
+                    <xs:element type="xs:string" name="DocumentName"/>
+                    <xs:element type="xs:long" name="DocumentNumber"/>
+                    <xs:element type="xs:long" name="CommonRefNumber"/>
+                    <xs:element type="xs:byte" name="MessageType"/>
+                    <xs:element type="xs:string" name="SenderID"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="DocumentExchangeDetails">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="ReceivingPartyDetails">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element type="xs:string" name="ReceivingParty" maxOccurs="unbounded" minOccurs="0"/>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="NotifyPartyDetails">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element type="xs:string" name="NotifyParty" maxOccurs="unbounded" minOccurs="0"/>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="DocumentDetails">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="MMDInspectionReportHeader">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element type="xs:string" name="ReportingCountryCode"/>
+                    <xs:element type="xs:string" name="VesselName"/>
+                    <xs:element type="xs:string" name="FlagOfVessel"/>
+                    <xs:element type="xs:string" name="VesselType"/>
+                    <xs:element type="xs:string" name="CallSign"/>
+                    <xs:element type="xs:int" name="IMONumber"/>
+                    <xs:element type="xs:float" name="GrossTonnage"/>
+                    <xs:element type="xs:float" name="Deadweight"/>
+                    <xs:element type="xs:int" name="YearOfBuild"/>
+                    <xs:element type="xs:int" name="DateOfInspection"/>
+                    <xs:element type="xs:string" name="PlaceOfInspection"/>
+                    <xs:element type="xs:string" name="ClassificationSociety"/>
+                    <xs:element type="xs:int" name="DateOfReleaseFromDetention"/>
+                    <xs:element type="xs:string" name="ParticularsOfCompany"/>
+                    <xs:element type="xs:string" name="SACode"/>
+                    <xs:element type="xs:string" name="SLCode"/>
+                    <xs:element type="xs:float" name="LastIntermediateOrAnnualSurveyDate"/>
+                    <xs:element type="xs:string" name="LastIntermediateOrAnnualSurveyingAuthority"/>
+                    <xs:element type="xs:string" name="LastIntermediateOrAnnualSurveyingPlace"/>
+                    <xs:element type="xs:string" name="Deficiency"/>
+                    <xs:element type="xs:string" name="ShipDetained"/>
+                    <xs:element name="CertificateDetails">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="CertificateDetail">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element type="xs:int" name="RecordNumber"/>
+                                <xs:element type="xs:string" name="CertificateCode"/>
+                                <xs:element type="xs:string" name="IssuingAuthority"/>
+                                <xs:element type="xs:int" name="DateOfIssue"/>
+                                <xs:element type="xs:int" name="DateOfExpiry"/>
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="DeficiencyDetails">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="DeficiencyDetail">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element type="xs:int" name="RecordNumber"/>
+                                <xs:element type="xs:string" name="CodeOfDeficiency"/>
+                                <xs:element type="xs:string" name="Convention"/>
+                                <xs:element type="xs:string" name="ActionTakenCode"/>
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="SupportingDocumentsDetails">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="SupportingDocumentsDetail">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element type="xs:int" name="RecordNumber"/>
+                                <xs:element type="xs:string" name="SupportingDocuments"/>
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="DocumentSummary">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element type="xs:long" name="IssuedDateTime"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

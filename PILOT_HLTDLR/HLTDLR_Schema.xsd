@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 07 Crimsonlogic Pte Ltd; Version : 1.0-->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:PCS-CMN="PCS_Common_Types">
+	<xsd:import namespace="PCS_Common_Types" schemaLocation="PCS_CommonTypes.xsd"/>
+	<xsd:element name="HealthDeclarationForSailOut" type="HealthDeclarationForSailOutType"/>
+	<xsd:complexType name="HealthDeclarationForSailOutType">
+		<xsd:sequence>
+			<xsd:element name="DocumentHeader" type="PCS-CMN:DocumentHeaderType"/>
+			<xsd:element name="DocumentDetails" type="DocumentDetailsType"/>
+			<xsd:element name="DocumentSummary" type="PCS-CMN:DocumentSummaryType"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="DocumentDetailsType">
+		<xsd:sequence>
+			<xsd:element name="HealthDeclarationForSailOutHeaderDetails" type="HealthDeclarationForSailOutHeaderDetailsType"/>		
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="HealthDeclarationForSailOutHeaderDetailsType">
+		<xsd:sequence>
+			<xsd:element name="RecordType" type="PCS-CMN:RecordType"/>
+			<xsd:element name="VCN" type="PCS-CMN:VCNType"/>
+			<xsd:element name="CallSign" type="PCS-CMN:CodeIDNameTextType"/>
+			<xsd:element name="IMONumber" type="PCS-CMN:CodeIDNameTextType"/>
+			<xsd:element name="VoyageNumber" type="PCS-CMN:CodeIDNameTextType"/>
+			<xsd:element name="MasterName" type="PCS-CMN:StandardNameTextType"/>
+			<xsd:element name="ShipSurgeonName" type="PCS-CMN:StandardNameTextType" minOccurs="0"/>
+			<xsd:element name="NoOfPassengerThro" type="PCS-CMN:FendersType" minOccurs="0"/>
+			<xsd:element name="NoOfPassengeNew" type="PCS-CMN:FendersType" minOccurs="0"/>
+			<xsd:element name="NoOfCrewThro" type="PCS-CMN:FendersType" minOccurs="0"/>
+			<xsd:element name="NoOfCrewNew" type="PCS-CMN:FendersType" minOccurs="0"/>
+			<xsd:element name="SSCC" type="PCS-CMN:CodeIDNameTextType" minOccurs="0"/>
+			<xsd:element name="DateOfIssue" type="PCS-CMN:DateType" minOccurs="0"/>
+			<xsd:element name="UnusualMortalityOfRats" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="UnusualMortalityDetails" type="PCS-CMN:DescType" minOccurs="0"/>
+			<xsd:element name="ICPCertificateIssued" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="ICPCertificateNo" type="PCS-CMN:CodeIDNameTextType" minOccurs="0"/>
+			<xsd:element name="ICPCertificateIssueDate" type="PCS-CMN:DateType" minOccurs="0"/>
+			<xsd:element name="ICPCertificateValidUpto" type="PCS-CMN:DateType" minOccurs="0"/>
+			<xsd:element name="MedicineChestCertNo" type="PCS-CMN:CodeIDNameTextType" minOccurs="0"/>
+			<xsd:element name="MedicineChestCertDate" type="PCS-CMN:DateType" minOccurs="0"/>
+			<xsd:element name="AnySicknessOfCrewDuringTheStayAtPort" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="AnyCrewSignedOffOrHospitalizedAtPort" type="PCS-CMN:Char1CodeType" minOccurs="0"/>
+			<xsd:element name="NatureOfSickness" type="PCS-CMN:Char200CodeType" minOccurs="0"/>
+			<xsd:element name="MedicalOfficerName" type="PCS-CMN:StandardNameTextType" minOccurs="0"/>
+		</xsd:sequence>
+	</xsd:complexType>	
+</xsd:schema>

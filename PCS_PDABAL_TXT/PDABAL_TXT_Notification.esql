@@ -1,0 +1,163 @@
+
+
+
+
+CREATE COMPUTE MODULE PDABAL_TXT_Notification
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE currTime CHAR;
+		SET currTime = CURRENT_TIMESTAMP;
+
+		DECLARE TemplateEmailSdr, TemplateEmailInc ,SUBJECT, TemplateSMSSdr CHARACTER;
+		DECLARE TerminalEmail, RecipientlistDist, AgentEmail, AgentMobile, SMSDistList, TerminalMobile, TemplateSMSInc CHARACTER;
+		DECLARE RecieveCount INTEGER CARDINALITY (Environment.ReceivingParty[]);
+		DECLARE Recipientlist CHARACTER;
+		DECLARE K INTEGER;
+
+		DECLARE refNotif REFERENCE TO Environment.NOTIF;
+		-- MOVE refNotif FIRSTCHILD;
+
+		SET TerminalEmail=refNotif.TerminalEmail;
+		SET AgentEmail = refNotif.AgentEmail;
+		SET AgentMobile = refNotif.AgentMobile;
+		SET TerminalMobile = refNotif.TerminalMobile;
+
+		DECLARE crlf CHAR CAST(CAST('X''0A''' AS BLOB) AS CHAR CCSID 1208 );
+		SET TemplateEmailSdr='Dear '||COALESCE(refNotif.AgentName,'')||','||crlf||crlf||
+		'The PD Account Balance for account no. '||COALESCE(refNotif.PDAccountNo,'')||','||crlf||
+		'has been submitted by '||COALESCE(refNotif.AgentName,'')||crlf|| 'The balance in the account is Rs. '||COALESCE(refNotif.Balance,'')||crlf||crlf||
+
+		'Please visit NLPM website for more details. '||crlf||crlf||
+		'-Team NLPM'||crlf;
+
+		SET TemplateEmailInc='Dear '||COALESCE(refNotif.PortAbbr,'')||','||crlf||crlf||
+		'The PD Account Balance for account no. '||COALESCE(refNotif.PDAccountNo,'')||crlf||
+		'has been submitted to agent '||COALESCE(refNotif.AgentName,'')||crlf|| 'The balance in the account is Rs. '||COALESCE(refNotif.Balance,'')||crlf||crlf||
+
+		'Please visit IPA-PCS website for more details. '||crlf||crlf||
+		'-Team NLPM'||crlf;
+
+		SET TemplateSMSSdr=COALESCE(refNotif.PortAbbr,'')||' has sent an update on the account balance for PD Account No. '||COALESCE(refNotif.PDAccountNo,'')||','||crlf||crlf||
+		'-Team NLPM'||crlf;
+
+		SET TemplateSMSInc=COALESCE(refNotif.PortAbbr,'')||' has sent an update on the account balance for PD Account No. '||COALESCE(refNotif.PDAccountNo,'')||','||crlf||crlf||
+		'-Team NLPM'||crlf;		
+		-- 'Agent '||COALESCE(refNotif.SenderName,'')||','||crlf||crlf||
+		-- ' has submitted the expected time of arrival and departure for vessel  '||COALESCE(refNotif.VesselName,'')||crlf||
+		-- '-Team PCS'||crlf;
+
+		SET SUBJECT='PD Account Balance for Account No. '||COALESCE(refNotif.PDAccountNo,'')||' has been sent';
+
+		SET K = 1;
+		WHILE K <= RecieveCount DO
+			IF K =1 THEN
+				SET Recipientlist=Environment.ReceivingParty[K].Email_id;
+			ELSE
+				SET Recipientlist=COALESCE(Recipientlist,'')||Environment.ReceivingParty[K].Email_id;
+			END IF;
+			SET Recipientlist=Recipientlist ||',';
+			SET K=K+1;
+		END WHILE ;			
+
+
+		IF LENGTH(TerminalEmail) > 0 THEN
+			CALL CopyMessageHeaders();
+			SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header=Environment.PCS_Audit.Header;
+			SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To=TerminalEmail;
+			SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From=SUBJECT;
+			SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template=TemplateEmailInc;
+			PROPAGATE TO TERMINAL 'out2';
+		END IF;
+		IF LENGTH(AgentEmail) > 0 THEN
+			CALL CopyMessageHeaders();
+			SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header=Environment.PCS_Audit.Header;
+			SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To=AgentEmail;
+			SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From=SUBJECT;
+			SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template=TemplateEmailSdr;
+			PROPAGATE TO TERMINAL 'out2';
+		END IF;
+
+		IF RecieveCount > 0 THEN
+			CALL CopyMessageHeaders();
+			SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header=Environment.PCS_Audit.Header;
+			SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To=Recipientlist ;
+			SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From=SUBJECT;
+			SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template=TemplateEmailInc;
+			PROPAGATE TO TERMINAL 'out2';
+		END IF;	
+
+
+
+		SET K = 1;
+		WHILE K <= RecieveCount DO
+			IF K =1 THEN
+				SET Recipientlist=Environment.ReceivingParty[K].Mobile;
+			ELSE
+				SET Recipientlist=COALESCE(Recipientlist,'')||Environment.ReceivingParty[K].Mobile;
+			END IF;
+			SET Recipientlist=Recipientlist ||',';
+			SET K=K+1;
+		END WHILE ;
+
+		IF RecieveCount > 0 THEN
+			CALL CopyMessageHeaders();
+			SET OutputRoot.JSON.Data.Notification.SMS.PCS_Audit.Header=Environment.PCS_Audit.Header;
+			SET OutputRoot.JSON.Data.Notification.SMS.MobileNo=Recipientlist;
+			SET OutputRoot.JSON.Data.Notification.SMS.message=TemplateSMSInc;
+			PROPAGATE TO TERMINAL 'out1';
+		END IF;
+		IF LENGTH(TerminalMobile) > 0 THEN
+			CALL CopyMessageHeaders();
+			SET OutputRoot.JSON.Data.Notification.SMS.PCS_Audit.Header=Environment.PCS_Audit.Header;
+			SET OutputRoot.JSON.Data.Notification.SMS.MobileNo=TerminalMobile;
+			SET OutputRoot.JSON.Data.Notification.SMS.message=TemplateSMSInc;
+			PROPAGATE TO TERMINAL 'out1';
+		END IF;
+		IF LENGTH(AgentMobile) > 0 THEN
+			CALL CopyMessageHeaders();
+			SET OutputRoot.JSON.Data.Notification.SMS.PCS_Audit.Header=Environment.PCS_Audit.Header;
+			SET OutputRoot.JSON.Data.Notification.SMS.MobileNo=AgentMobile;
+			SET OutputRoot.JSON.Data.Notification.SMS.message=TemplateSMSSdr;
+			PROPAGATE TO TERMINAL 'out1';
+		END IF;
+
+		CALL CopyMessageHeaders();
+		Set OutputRoot.XML.PCS_Audit.Header.MS_REF_NO=Environment.PCS_Audit.Header.MS_REF_NO;
+		Set OutputRoot.XML.PCS_Audit.Header.MSG_UID =Environment.PCS_Audit.Header.MSG_UID;
+		Set OutputRoot.XML.PCS_Audit.Header.MSG_TYPE =Environment.PCS_Audit.Header.MSG_TYPE;
+		Set OutputRoot.XML.PCS_Audit.Header.MSG_TIME =Environment.PCS_Audit.Header.MSG_TIME;
+		Set OutputRoot.XML.PCS_Audit.Header.MSG_SNDR=Environment.PCS_Audit.Header.MSG_SNDR;
+		SET OutputRoot.XML.PCS_Audit.Header.PORT_CODE=Environment.PCS_Audit.Header.PORT_CODE;
+		Set OutputRoot.XML.PCS_Audit.Details.Message.EDI_START_TS=Environment.PCS_Audit.Details.Message.EDI_START_TS;
+		Set OutputRoot.XML.PCS_Audit.Details.Message.EDI_END_TS=Environment.PCS_Audit.Details.Message.EDI_END_TS;
+		Set OutputRoot.XML.PCS_Audit.Details.Message.FILE_NAME=Environment.PCS_Audit.Details.Message.FILE_NAME;
+		Set OutputRoot.XML.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO=Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO;
+
+		Set OutputRoot.XML.PCS_Audit.Details.Database.DB_SP_START_TS=Environment.PCS_Audit.Database.DB_SP_START_TS;
+		Set OutputRoot.XML.PCS_Audit.Details.Database.DB_SP_END_TS=Environment.PCS_Audit.Database.DB_SP_END_TS;
+		Set OutputRoot.XML.PCS_Audit.Details.Database.DB_SP_REMARK=Environment.PCS_Audit.Database.DB_SP_REMARK;
+		Set OutputRoot.XML.PCS_Audit.Details.Database.DB_SP_STATUS=Environment.PCS_Audit.Database.DB_SP_STATUS;
+
+		IF FIELDVALUE(Environment.PCS_Audit.Header.DB_SP_REMARK) = 'S' THEN
+			SET OutputRoot.XML.PCS_Audit.Details.Database.DB_SP_REMARK='SUCCESS';
+			SET OutputRoot.XML.PCS_Audit.Details.Database.DB_SP_STATUS='Executed successfully';
+		END IF;
+		IF FIELDVALUE(Environment.PCS_Audit.Header.DB_SP_REMARK) = 'F' THEN
+			SET OutputRoot.XML.PCS_Audit.Details.Database.DB_SP_REMARK='FAILED';
+			SET OutputRoot.XML.PCS_Audit.Details.Database.DB_SP_STATUS='Error';
+		END IF;
+		PROPAGATE TO TERMINAL 'out';
+		RETURN FALSE;
+	END;
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+END MODULE;

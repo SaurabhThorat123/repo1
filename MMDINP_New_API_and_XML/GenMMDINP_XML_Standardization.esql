@@ -1,0 +1,10 @@
+CREATE COMPUTE MODULE GenMMDINP_XML_Standardization_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE blobStruc BLOB;
+		SET blobStruc = InputRoot.BLOB.BLOB;
+		SET blobStruc = REPLACE(blobStruc, X'3e3c' , X'3e0d0a3c');
+		SET OutputRoot.BLOB.BLOB = blobStruc;
+		RETURN TRUE;
+	END;
+END MODULE;

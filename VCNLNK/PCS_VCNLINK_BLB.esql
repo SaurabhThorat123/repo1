@@ -1,0 +1,11 @@
+
+
+CREATE COMPUTE MODULE PCS_VCNLINK_BLB
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE blobStruc BLOB;
+		SET blobStruc = InputRoot.BLOB.BLOB;
+		SET blobStruc = REPLACE(blobStruc, X'3e3c' , X'3e0d0a3c');
+		SET OutputRoot.BLOB.BLOB = blobStruc;
+	END;
+END MODULE;

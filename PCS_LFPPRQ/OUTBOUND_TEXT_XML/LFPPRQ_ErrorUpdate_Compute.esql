@@ -1,0 +1,16 @@
+BROKER SCHEMA OUTBOUND_TEXT_XML
+
+
+CREATE COMPUTE MODULE LFPPRQ_ErrorUpdate_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE blobdata BLOB;
+		DECLARE resp,crmno CHARACTER;
+		-- SET blobdata = ASBITSTREAM(InputRoot.JSON.Data);
+		SET resp = CAST(InputRoot.BLOB.BLOB as character ccsid 1208);
+		SET crmno = Environment.variables.txnID;
+		UPDATE Database.PCSIBM.TIBM_LOG_AUDIT_API AS SP SET TRM_STATUS = '0',RES_PAYLOAD = resp WHERE SP.MS_REF_NO = crmno AND SP.AUDITSEQ = Environment.variables.AuditSeq[1].SEQ;
+		COMMIT;
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;

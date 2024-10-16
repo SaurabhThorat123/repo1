@@ -1,0 +1,341 @@
+
+
+
+
+
+
+CREATE COMPUTE MODULE LFPPRQ_MAIN_notify
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE resp CHARACTER;
+		DECLARE inCCSID INT 1208;
+		DECLARE inEncoding INT 546;
+		DECLARE crmno CHARACTER;
+		DECLARE blobdata BLOB;
+
+		DECLARE crlf CHAR CAST(CAST('X''0A''' AS BLOB) AS CHAR CCSID 1208);
+		IF Environment.variables.APICall = 'TRUE' THEN
+			SET blobdata = ASBITSTREAM(InputRoot.JSON.Data);
+			SET resp = CAST(blobdata as character ccsid 1208);
+			SET crmno = Environment.PCS_Audit.Header.MS_REF_NO;
+			UPDATE Database.PCSIBM.TIBM_LOG_AUDIT_API AS SP SET TRM_STATUS = '1',RES_PAYLOAD = resp WHERE SP.MS_REF_NO = crmno AND SP.AUDITSEQ = Environment.variables.AuditSeq[1].SEQ;
+			COMMIT;
+		END IF;
+		IF Environment.Flag = 'Y' THEN
+			IF Environment.Format = 'XML' THEN
+				---------------------------------------------------------------------Submitted------------------------------------------------------------------------------------
+				-- IF (Environment.CalinfHeader.ApprovalStatus = 'Submitted') THEN
+				-- SET Environment.TemplateSA = 'Dear '||COALESCE(Environment.CalinfHeader.SenderName,'') ||','||' your Request For Pratique has been submitted.' ||crlf||
+				-- 'Please find request details below' ||crlf||crlf||
+				-- 'Common Reference Number: '||COALESCE(Environment.CalinfHeader.CommonRefNumber,'') ||crlf||
+				-- 'Vessel Name: '||COALESCE(Environment.CalinfHeader.VesselName,'') ||crlf||
+				-- 'IMO Number: '||COALESCE(Environment.CalinfHeader.IMONumber,'') ||crlf||
+				-- 'Trade: '||COALESCE(Environment.CalinfHeader.Trade,'') ||crlf||
+				-- 'Request Date & Time: '||COALESCE(Environment.CalinfHeader.SubmissionDateTime,'') ||crlf||crlf||
+				-- 'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+				-- 'Thanks & regards,'||crlf||
+				-- 'Team NLPM ';
+				--
+				-- SET Environment.TemplatePA = 'Dear PHO a Request For Pratique has been submitted.'||crlf||
+				-- 'Please find request details below'||crlf||crlf||
+				-- 'Common Reference Number: '||COALESCE(Environment.CalinfHeader.CommonRefNumber,'') ||crlf||
+				-- 'Shipping Agent Name: '||COALESCE(Environment.CalinfHeader.SenderName,'') ||crlf||
+				-- 'Vessel Name: '||COALESCE(Environment.CalinfHeader.VesselName,'') ||crlf||
+				-- 'IMO No.: '||COALESCE(Environment.CalinfHeader.IMONumber,'') ||crlf||
+				-- 'Trade: '||COALESCE(Environment.CalinfHeader.Trade,'') ||crlf||
+				-- 'Request Date & Time: '||COALESCE(Environment.CalinfHeader.SubmissionDateTime,'') ||crlf||crlf||
+				-- 'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+				-- 'Thanks & regards,'||crlf||
+				-- 'Team NLPM ';
+				--
+				-- IF (Environment.ReceivingParty.Email_id <> '') THEN
+				-- DECLARE RecieveCount INTEGER CARDINALITY (Environment.ReceivingParty[]);
+				-- DECLARE Recipientlist CHARACTER;
+				-- DECLARE K INTEGER 1;
+				-- WHILE (K <= RecieveCount) DO
+				-- IF (K = 1) THEN
+				-- SET Recipientlist = Environment.ReceivingParty[K].Email_id;
+				-- ELSE
+				-- SET Recipientlist = COALESCE(Recipientlist,'')||Environment.ReceivingParty[K].Email_id;
+				-- END IF;
+				-- SET Recipientlist = Recipientlist ||',';
+				-- SET K = K + 1;
+				-- END WHILE ;
+				-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+				-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+				-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Pratique has been submitted for vessel '||COALESCE(Environment.CalinfHeader.VesselName,'')||'.'; --'SUBJECT';--
+				-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+				-- PROPAGATE TO TERMINAL 'out1';
+				-- END IF;
+				-- IF (LENGTH(Environment.CalinfHeader.Sender_Email_id) <> 0) THEN
+				-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+				-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.CalinfHeader.Sender_Email_id;
+				-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Pratique has been submitted for vessel '||COALESCE(Environment.CalinfHeader.VesselName,'')||'.'; --'SUBJECT';----
+				-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+				-- PROPAGATE TO TERMINAL 'out1';
+				-- END IF;
+				---------------------------------------------------------------------Approved------------------------------------------------------------------------------------
+				IF (Environment.CalinfHeader.ApprovalStatus = 'Granted') THEN
+					SET Environment.TemplateSA = 'Dear '||COALESCE(Environment.CalinfHeader.SenderName,'') ||','||' Limited Free Pratique Request has been granted.' ||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.CalinfHeader.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.CalinfHeader.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.CalinfHeader.VCN,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.CalinfHeader.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.CalinfHeader.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.CalinfHeader.SubmissionDateTime,'') ||crlf||
+					'Granted Date & Time: '||COALESCE(Environment.CalinfHeader.GrantedDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+					--
+					SET Environment.TemplatePA = 'Dear PHO Limited Free Pratique has been granted.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.CalinfHeader.CommonRefNumber,'') ||crlf||
+					'Shipping Agent Name: '||COALESCE(Environment.CalinfHeader.SenderName,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.CalinfHeader.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.CalinfHeader.VCN,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.CalinfHeader.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.CalinfHeader.Trade,'') ||crlf||
+					'Submission Date & Time: '||COALESCE(Environment.CalinfHeader.SubmissionDateTime,'') ||crlf||
+					'Granted Date & Time: '||COALESCE(Environment.CalinfHeader.GrantedDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					IF (Environment.ReceivingParty.Email_id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.ReceivingParty[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.ReceivingParty[K].Email_id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.ReceivingParty[K].Email_id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Request For Limited Free Pratique has been granted for vessel '||COALESCE(Environment.CalinfHeader.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					IF (LENGTH(Environment.CalinfHeader.Sender_Email_id) <> 0) THEN
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.CalinfHeader.Sender_Email_id;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Limited Free Pratique has been granted for vessel '||COALESCE(Environment.CalinfHeader.VesselName,'')||'.'; --'SUBJECT';----
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					IF Environment.HltdlrHeader.ApprovalStatus = 'Submitted' THEN
+						SET OutputRoot.XML.PCS_Audit.Header.EVENT_NAME = 'Submission';
+					ELSEIF (Environment.HltdlrHeader.ApprovalStatus = 'Submitted' AND Environment.variables.APICall = TRUE) THEN
+						SET OutputRoot.XML.PCS_Audit.Header.EVENT_NAME = 'APICall';
+					ELSEIF (Environment.HltdlrHeader.ApprovalStatus = 'Rejected') THEN
+						SET OutputRoot.XML.PCS_Audit.Header.EVENT_NAME = 'Rejection';
+					ELSE
+						SET OutputRoot.XML.PCS_Audit.Header.EVENT_NAME = 'Approved';
+					END IF;
+					---------------------------------------------------------------------Rejected------------------------------------------------------------------------------------
+					-- ELSEIF (Environment.CalinfHeader.ApprovalStatus = 'Rejected') THEN
+					-- SET Environment.TemplateSA = 'Dear '||COALESCE(Environment.CalinfHeader.SenderName,'') ||','||' your Request For Pratique has been rejected.' ||crlf||
+					-- 'Please find request details below' ||crlf||crlf||
+					-- 'Common Reference Number: '||COALESCE(Environment.CalinfHeader.CommonRefNumber,'') ||crlf||
+					-- 'Vessel Name: '||COALESCE(Environment.CalinfHeader.VesselName,'') ||crlf||
+					-- 'IMO Number: '||COALESCE(Environment.CalinfHeader.IMONumber,'') ||crlf||
+					-- 'Trade: '||COALESCE(Environment.CalinfHeader.Trade,'') ||crlf||
+					-- 'Request Date & Time: '||COALESCE(Environment.CalinfHeader.SubmissionDateTime,'') ||crlf||
+					-- 'Reason For Rejection: '||COALESCE(Environment.CalinfHeader.ReasonForRejection,'') ||crlf||
+					-- 'Rejection Date & Time: '||COALESCE(Environment.CalinfHeader.RejectionDateTime,'') ||crlf||crlf||
+					-- 'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					-- 'Thanks & regards,'||crlf||
+					-- 'Team NLPM ';
+					--
+					-- SET Environment.TemplatePA = 'Dear PHO a Request For Pratique has been rejected.'||crlf||
+					-- 'Please find request details below'||crlf||crlf||
+					-- 'Common Reference Number: '||COALESCE(Environment.CalinfHeader.CommonRefNumber,'') ||crlf||
+					-- 'Shipping Agent Name: '||COALESCE(Environment.CalinfHeader.SenderName,'') ||crlf||
+					-- 'Vessel Name: '||COALESCE(Environment.CalinfHeader.VesselName,'') ||crlf||
+					-- 'IMO No.: '||COALESCE(Environment.CalinfHeader.IMONumber,'') ||crlf||
+					-- 'Trade: '||COALESCE(Environment.CalinfHeader.Trade,'') ||crlf||
+					-- 'Submission Date & Time: '||COALESCE(Environment.CalinfHeader.SubmissionDateTime,'') ||crlf||
+					-- 'Reason For Rejection: '||COALESCE(Environment.CalinfHeader.ReasonForRejection,'') ||crlf||
+					-- 'Rejection Date & Time: '||COALESCE(Environment.CalinfHeader.RejectionDateTime,'') ||crlf||crlf||
+					-- 'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					-- 'Thanks & regards,'||crlf||
+					-- 'Team NLPM ';
+					--
+					-- IF (Environment.ReceivingParty.Email_id <> '') THEN
+					-- DECLARE RecieveCount INTEGER CARDINALITY (Environment.ReceivingParty[]);
+					-- DECLARE Recipientlist CHARACTER;
+					-- DECLARE K INTEGER 1;
+					-- WHILE (K <= RecieveCount) DO
+					-- IF (K = 1) THEN
+					-- SET Recipientlist = Environment.ReceivingParty[K].Email_id;
+					-- ELSE
+					-- SET Recipientlist = COALESCE(Recipientlist,'')||Environment.ReceivingParty[K].Email_id;
+					-- END IF;
+					-- SET Recipientlist = Recipientlist ||',';
+					-- SET K = K + 1;
+					-- END WHILE ;
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Free Pratique has been rejected for vessel '||COALESCE(Environment.CalinfHeader.VesselName,'')||'.'; --'SUBJECT';--
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+					-- PROPAGATE TO TERMINAL 'out1';
+					-- END IF;
+					-- IF (LENGTH(Environment.CalinfHeader.Sender_Email_id) <> 0) THEN
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.CalinfHeader.Sender_Email_id;
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Free Pratique has been rejected for vessel '||COALESCE(Environment.CalinfHeader.VesselName,'')||'.'; --'SUBJECT';----
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+					-- PROPAGATE TO TERMINAL 'out1';
+					-- END IF;
+					--
+					-- ELSEIF (Environment.CalinfHeader.ApprovalStatus = 'ReSubmitted') THEN
+					-- SET Environment.TemplateSA = 'Dear '||COALESCE(Environment.CalinfHeader.SenderName,'') ||','||' your Request For Pratique has been ReSubmitted.' ||crlf||
+					-- 'Please find request details below' ||crlf||crlf||
+					-- 'Common Reference Number: '||COALESCE(Environment.CalinfHeader.CommonRefNumber,'') ||crlf||
+					-- 'Vessel Name: '||COALESCE(Environment.CalinfHeader.VesselName,'') ||crlf||
+					-- 'IMO Number: '||COALESCE(Environment.CalinfHeader.IMONumber,'') ||crlf||
+					-- 'Trade: '||COALESCE(Environment.CalinfHeader.Trade,'') ||crlf||
+					-- 'Request Date & Time: '||COALESCE(Environment.CalinfHeader.SubmissionDateTime,'') ||crlf||crlf||
+					-- 'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					-- 'Thanks & regards,'||crlf||
+					-- 'Team NLPM ';
+					--
+					-- SET Environment.TemplatePA = 'Dear PHO a Request For Pratique has been ReSubmitted.'||crlf||
+					-- 'Please find request details below'||crlf||crlf||
+					-- 'Common Reference Number: '||COALESCE(Environment.CalinfHeader.CommonRefNumber,'') ||crlf||
+					-- 'Shipping Agent Name: '||COALESCE(Environment.CalinfHeader.SenderName,'') ||crlf||
+					-- 'Vessel Name: '||COALESCE(Environment.CalinfHeader.VesselName,'') ||crlf||
+					-- 'IMO No.: '||COALESCE(Environment.CalinfHeader.IMONumber,'') ||crlf||
+					-- 'Trade: '||COALESCE(Environment.CalinfHeader.Trade,'') ||crlf||
+					-- 'Request Date & Time: '||COALESCE(Environment.CalinfHeader.SubmissionDateTime,'') ||crlf||crlf||
+					-- 'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					-- 'Thanks & regards,'||crlf||
+					-- 'Team NLPM ';
+					--
+					-- IF (Environment.ReceivingParty.Email_id <> '') THEN
+					-- DECLARE RecieveCount INTEGER CARDINALITY (Environment.ReceivingParty[]);
+					-- DECLARE Recipientlist CHARACTER;
+					-- DECLARE K INTEGER 1;
+					-- WHILE (K <= RecieveCount) DO
+					-- IF (K = 1) THEN
+					-- SET Recipientlist = Environment.ReceivingParty[K].Email_id;
+					-- ELSE
+					-- SET Recipientlist = COALESCE(Recipientlist,'')||Environment.ReceivingParty[K].Email_id;
+					-- END IF;
+					-- SET Recipientlist = Recipientlist ||',';
+					-- SET K = K + 1;
+					-- END WHILE ;
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Pratique has been ReSubmitted for vessel '||COALESCE(Environment.CalinfHeader.VesselName,'')||'.'; --'SUBJECT';--
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+					-- PROPAGATE TO TERMINAL 'out1';
+					-- END IF;
+					-- IF (LENGTH(Environment.CalinfHeader.Sender_Email_id) <> 0) THEN
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.CalinfHeader.Sender_Email_id;
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Request For Pratique has been ReSubmitted for vessel '||COALESCE(Environment.CalinfHeader.VesselName,'')||'.'; --'SUBJECT';----
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+					-- PROPAGATE TO TERMINAL 'out1';
+					-- END IF;					
+					--
+					-- ELSEIF (Environment.CalinfHeader.ApprovalStatus = 'Rejected') THEN
+					-- SET Environment.TemplateRej = 'Dear '||COALESCE(Environment.CalinfHeader.SenderName,'') ||' ,'||crlf||
+					-- 'Voyage Registration Application for the '||COALESCE(Environment.CalinfHeader.VesselName,'') ||' has been rejected by '||COALESCE(Environment.CalinfHeader.PortAbbr,'') ||'. Please find below details of the submission.'||crlf||crlf||
+					-- 'Vessel Name: '||COALESCE(Environment.CalinfHeader.VesselName,'') ||crlf||
+					-- 'IMO No.: '||COALESCE(Environment.CalinfHeader.IMONumber,'') ||crlf||
+					-- 'Submission Date & Time: '||COALESCE(Environment.CalinfHeader.SubmissionDateTime,'') ||crlf||
+					-- 'Rejection Date & Time: '||COALESCE(Environment.CalinfHeader.ApprRejDateTime,'') ||crlf||
+					-- 'Reason for Rejection: '||COALESCE(Environment.CalinfHeader.Reason,'') ||crlf||crlf||
+					-- 'Please visit the PCS website for more details.'||crlf||crlf||
+					-- 'Thanks & regards,'||crlf||
+					-- 'Team PCS ';
+					-- SET Environment.MessageRej ='Voyage Registration request for vessel '||COALESCE(Environment.CalinfHeader.VesselName,'')||' has been rejected by '||COALESCE(Environment.CalinfHeader.PortAbbr,'')||'. Please login to the PCS and resubmit your application.'||crlf||'-Team PCS';
+					-- IF (LENGTH(Environment.CalinfHeader.Sender_Email_id) <> 0) THEN
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.CalinfHeader.Sender_Email_id;
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Voyage Registration request for vessel '||COALESCE(Environment.CalinfHeader.VesselName,'')||' has been rejected.'; --'SUBJECT';--
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateRej;
+					-- PROPAGATE TO TERMINAL 'out1';
+					-- END IF;
+					--
+					-- SET Environment.TerminalRej = 'Dear '||COALESCE(Environment.CalinfHeader.Terminal_User_Name,'') ||' ,'||crlf||
+					-- 'Voyage Registration Application for the '||COALESCE(Environment.CalinfHeader.VesselName,'') ||' has been rejected by '||COALESCE(Environment.CalinfHeader.PortAbbr,'') ||'. Please find below details of the submission.'||crlf||crlf||
+					-- 'Vessel Name: '||COALESCE(Environment.CalinfHeader.VesselName,'') ||crlf||
+					-- 'IMO No.: '||COALESCE(Environment.CalinfHeader.IMONumber,'') ||crlf||
+					-- 'Submission Date & Time: '||COALESCE(Environment.CalinfHeader.SubmissionDateTime,'') ||crlf||
+					-- 'Rejection Date & Time: '||COALESCE(Environment.CalinfHeader.ApprRejDateTime,'') ||crlf||
+					-- 'Reason for Rejection: '||COALESCE(Environment.CalinfHeader.Reason,'') ||crlf||crlf||
+					-- 'Please visit the PCS website for more details.'||crlf||crlf||
+					-- 'Thanks & regards,'||crlf||
+					-- 'Team PCS ';
+					--
+					-- SET Environment.TerminalRejMsg ='Voyage Registration request for vessel '||COALESCE(Environment.CalinfHeader.VesselName,'')||' has been rejected by '||COALESCE(Environment.CalinfHeader.PortAbbr,'')||'. Please login to the PCS and resubmit your application.'||crlf||'-Team PCS';
+					--
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.CalinfHeader.Terminal_Email_id;
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Voyage Registration request for vessel '||COALESCE(Environment.CalinfHeader.VesselName,'')||' has been rejected.'; --'SUBJECT';--
+					-- SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TerminalRej;
+					-- PROPAGATE TO TERMINAL 'out1';
+					--
+					-- IF (LENGTH(Environment.CalinfHeader.Sender_Mobile) <> 0) THEN
+					-- SET OutputRoot.JSON.Data.Notification.SMS.PCS_Audit.Header = Environment.PCS_Audit.Header;
+					-- SET OutputRoot.JSON.Data.Notification.SMS.MobileNo = Environment.CalinfHeader.Sender_Mobile;
+					-- SET OutputRoot.JSON.Data.Notification.SMS.message = Environment.MessageRej;
+					-- PROPAGATE TO TERMINAL 'out2';
+					-- END IF;
+					-- SET OutputRoot.JSON.Data.Notification.SMS.PCS_Audit.Header = Environment.PCS_Audit.Header;
+					-- SET OutputRoot.JSON.Data.Notification.SMS.MobileNo = Environment.CalinfHeader.Terminal_Mobile;
+					-- SET OutputRoot.JSON.Data.Notification.SMS.message = Environment.TerminalRejMsg;
+					-- PROPAGATE TO TERMINAL 'out2';
+					-- ELSE
+					-- SET Environment.PCS_Audit.Header.Event = 'Approved';
+					-- SET Environment.variables.fileName = 'For the following CALINF already approved';
+					-- PROPAGATE TO TERMINAL 'out';
+					-- RETURN FALSE;
+					-- END IF;
+				END IF;
+				SET OutputRoot.XML.PCS_Audit.Header.MS_REF_NO = Environment.PCS_Audit.Header.MS_REF_NO;
+				SET OutputRoot.XML.PCS_Audit.Header.MSG_UID = Environment.PCS_Audit.Header.MSG_UID;
+				SET OutputRoot.XML.PCS_Audit.Header.MSG_TYPE = Environment.PCS_Audit.Header.MSG_TYPE;
+				SET OutputRoot.XML.PCS_Audit.Header.MSG_TIME = Environment.PCS_Audit.Header.MSG_TIME;
+				SET OutputRoot.XML.PCS_Audit.Header.MSG_SNDR = Environment.PCS_Audit.Header.MSG_SNDR;
+				SET OutputRoot.XML.PCS_Audit.Header.Status = Environment.PCS_Audit.Header.Status;
+				SET OutputRoot.XML.PCS_Audit.Header.PORT_CODE = Environment.PCS_Audit.Header.PORT_CODE;
+				--
+				-- IF Environment.CalinfHeader.ApprovalStatus = 'Submitted' THEN
+				-- SET OutputRoot.XML.PCS_Audit.Header.EVENT_NAME = 'Submission';
+				-- ELSEIF (Environment.CalinfHeader.ApprovalStatus = 'Submitted' AND Environment.variables.APICall = TRUE) THEN
+				-- SET OutputRoot.XML.PCS_Audit.Header.EVENT_NAME = 'APICall';
+				-- ELSEIF (Environment.CalinfHeader.ApprovalStatus = 'Rejected') THEN
+				-- SET OutputRoot.XML.PCS_Audit.Header.EVENT_NAME = 'Rejection';
+				-- ELSE
+				-- SET OutputRoot.XML.PCS_Audit.Header.EVENT_NAME = 'Approved';
+			END IF;
+
+			SET OutputRoot.XML.PCS_Audit.Details.Message.EDI_START_TS = Environment.PCS_Audit.Details.Message.EDI_START_TS;
+			SET OutputRoot.XML.PCS_Audit.Details.Message.EDI_END_TS = Environment.PCS_Audit.Details.Message.EDI_END_TS;
+			SET OutputRoot.XML.PCS_Audit.Details.Message.FILE_NAME = Environment.PCS_Audit.Details.Message.FILE_NAME;
+			SET OutputRoot.XML.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO;
+			IF (Environment.variables.APICall = TRUE) THEN
+				SET OutputRoot.XML.PCS_Audit.Details.Message.FILE_NAME = 'NoFile';
+				SET OutputRoot.XML.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = 'NoDrop';
+			END IF;
+			SET OutputRoot.XML.PCS_Audit.Details.Database.DB_SP_START_TS = Environment.PCS_Audit.Database.DB_SP_START_TS;
+			SET OutputRoot.XML.PCS_Audit.Details.Database.DB_SP_END_TS = Environment.PCS_Audit.Database.DB_SP_END_TS;
+			SET OutputRoot.XML.PCS_Audit.Details.Database.DB_SP_REMARK = Environment.PCS_Audit.Database.DB_SP_REMARK;
+			SET OutputRoot.XML.PCS_Audit.Details.Database.DB_SP_STATUS = Environment.PCS_Audit.Database.DB_SP_STATUS;
+			PROPAGATE TO TERMINAL 'out3';
+
+		END IF;
+		RETURN FALSE;
+
+
+	END;
+END MODULE;

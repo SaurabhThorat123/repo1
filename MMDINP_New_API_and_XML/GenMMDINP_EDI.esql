@@ -1,0 +1,249 @@
+
+
+
+
+
+
+
+
+
+
+CREATE COMPUTE MODULE GenMMDINP_EDI_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE TransactionId,Format CHARACTER;
+		DECLARE jreq CHARACTER;
+		DECLARE MsRefno CHARACTER;
+		DECLARE I,count,count1,count2,bargecount,J INTEGER 1;
+		SET TransactionId = InputRoot.JSON.Data.JMB.EDI.Common_Ref;
+		SET Format = InputRoot.JSON.Data.JMB.EDI.Format;
+		SET MsRefno = CAST(TransactionId AS CHARACTER CCSID 1208);
+
+		SET Environment.PCS_Audit.Header.MS_REF_NO = TransactionId;
+		SET Environment.PCS_Audit.Header.MSG_UID = UUIDASCHAR;
+		SET Environment.PCS_Audit.Header.MSG_TYPE = MessageFlowLabel;
+		SET Environment.PCS_Audit.Header.MSG_TIME = CURRENT_TIMESTAMP;
+		SET Environment.PCS_Audit.Header.MSG_SNDR = BrokerUserId;
+
+		SET Environment.Inputtype = InputRoot.JSON.Data.JMB.EDI.Action_In;
+		SET Environment.PCS_Audit.Database.DB_SP_START_TS = CURRENT_TIMESTAMP;
+
+		CALL EDI_XGetMMDINP(TransactionId, Environment.MMDINPHeader[],Environment.ReceivingParty[],Environment.Barge[],Environment.CargoDetails[],Environment.NewDetail[],Environment.IssuedDateTime[]);
+		SET Environment.PCS_Audit.Header.PORT_CODE = Environment.MMDINPHeader.PortCode;
+
+		SET Environment.PCS_Audit.Database.DB_SP_END_TS = CURRENT_TIMESTAMP;
+		--IF (Environment.MMDINPHeader.ApprovalStatus = 'Submitted') THEN
+		-- SET Environment.variables.APICall = FALSE;
+		-- SET Environment.PCS_Audit.Details.Message.EDI_START_TS = CURRENT_TIMESTAMP;
+		-- SET Environment.PCS_Audit.Database.DB_SP_REMARK = 'S';
+		-- SET Environment.PCS_Audit.Database.DB_SP_STATUS = 'Executed Successfully';
+		-- SET Environment.PCS_Audit.Header.Status = 'Submitted';
+		-- SET Environment.PCS_Audit.Details.Message.FILE_NAME = Environment.ReceivingParty.FILE_NAME;
+		-- SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Environment.ReceivingParty.SFTP_PATH;
+
+
+		DECLARE outRef REFERENCE TO OutputRoot.XMLNSC.VoyageRegistration;
+		CREATE FIRSTCHILD OF OutputRoot.XMLNSC AS outRef NAME 'MMDInspectionReport';
+
+		SET outRef.DocumentHeader.DocumentReference.DocumentType = COALESCE(Environment.MMDINPHeader.DocumentType,'');
+		SET outRef.DocumentHeader.DocumentReference.DocumentName = COALESCE(Environment.MMDINPHeader.DocumentName,'');
+		IF (LENGTH(Environment.MMDINPHeader.DocumentNumber) > 0) THEN
+			SET outRef.DocumentHeader.DocumentReference.DocumentNumber = COALESCE(Environment.MMDINPHeader.DocumentNumber,'');
+		END IF;
+		SET outRef.DocumentHeader.DocumentReference.CommonRefNumber = COALESCE(Environment.MMDINPHeader.CommonRefNumber,'');
+		SET outRef.DocumentHeader.DocumentReference.MessageType = COALESCE(Environment.MMDINPHeader.MessageType,'');
+		SET outRef.DocumentHeader.DocumentReference.SenderID = COALESCE(Environment.MMDINPHeader.SenderID,'');
+
+		DECLARE PortCount INTEGER CARDINALITY(Environment.ReceivingParty[]);
+		--DECLARE count INTEGER 1;
+
+		WHILE (count <= PortCount) DO
+			SET outRef.DocumentHeader.DocumentExchangeDetails.ReceivingPartyDetails.ReceivingParty[count] = COALESCE(Environment.ReceivingParty[count].ReceivingParty,'');
+			SET count = count + 1;
+		END WHILE ;
+
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.ReportingCountryCode = COALESCE(Environment.MMDINPHeader.REPORTING_COUNTRYCODE,'');
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.VesselName = COALESCE(Environment.MMDINPHeader.SHIP_NAME,'');
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.FlagOfVessel = COALESCE(Environment.MMDINPHeader.SHIP_FLAG,'');
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.VesselType = COALESCE(Environment.MMDINPHeader.SHIP_TYPE,'');
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.CallSign = COALESCE(Environment.MMDINPHeader.CallSign,'');
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.IMONumber = COALESCE(Environment.MMDINPHeader.IMONumber,'');
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.GrossTonnage = COALESCE(Environment.MMDINPHeader.GROSS_TONNAGE,'');
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.Deadweight = COALESCE(Environment.MMDINPHeader.DEADWEIGHT,'');
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.YearOfBuild = COALESCE(Environment.MMDINPHeader.BUILD_YEAR,'');
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.DateOfInspection = COALESCE(Environment.MMDINPHeader.INSPECTION_DATE,'');
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.PlaceOfInspection = COALESCE(Environment.MMDINPHeader.INSPECTION_PLACE,'');
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.ClassificationSociety = Environment.MMDINPHeader.CLASSIFICATION_SOCIETY;
+
+
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.DateOfReleaseFromDetention = COALESCE(Environment.MMDINPHeader.DETENTION_RELEASEDATE,'');
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.ParticularsOfCompany = COALESCE(Environment.MMDINPHeader.COMPANY_PARTICULARS,'');
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.SACode = COALESCE(Environment.MMDINPHeader.SACode,'');
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.SLCode = COALESCE(Environment.MMDINPHeader.SLCode,'');
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.LastIntermediateOrAnnualSurveyDate = Environment.MMDINPHeader.SURVEY_DATE;
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.LastIntermediateOrAnnualSurveyingAuthority = Environment.MMDINPHeader.SURVEYING_AUTHORITY;
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.LastIntermediateOrAnnualSurveyingPlace = Environment.MMDINPHeader.SURVEYING_PLACE;
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.Deficiency = Environment.MMDINPHeader.DEFICIENCY;
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.ShipDetained = Environment.MMDINPHeader.SHIP_DETAINED;
+		-- DECLARE CertificateDetail INTEGER CARDINALITY(Environment.MMDInspectionReportHeader.CertificateDetails.CertificateDetail[]);
+		-- SET count = 1;
+		-- WHILE count<=CertificateDetail DO
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.CertificateDetails.CertificateDetail.RecordNumber = Environment.Barge.RecordNumber;
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.CertificateDetails.CertificateDetail.CertificateCode = Environment.Barge.CERTIFICATE_CODE;
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.CertificateDetails.CertificateDetail.IssuingAuthority = Environment.Barge.ISSUING_AUTHORITY;
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.CertificateDetails.CertificateDetail.DateOfIssue = Environment.Barge.ISSUE_DATE;
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.CertificateDetails.CertificateDetail.DateOfExpiry = Environment.Barge.EXPIRY_DATE;
+		-- SET count=count+1;
+		-- END WHILE;
+		-- DECLARE DeficiencyDetails INTEGER CARDINALITY(Environment.MMDInspectionReportHeader.DeficiencyDetails.DeficiencyDetails[]);
+		-- SET count1 = 1;
+		-- WHILE count1<=DeficiencyDetails DO
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.DeficiencyDetails.DeficiencyDetails.RecordNumber = Environment.CargoDetails.RecordNumber;
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.DeficiencyDetails.DeficiencyDetails.CodeOfDeficiency = Environment.CargoDetails.DEFICIENCY_CODE;
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.MMDInspectionReportHeader.DeficiencyDetails.DeficiencyDetails.Convention = Environment.CargoDetails.CONVENTION;
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.MMDInspectionReportHeader.DeficiencyDetails.DeficiencyDetails.ActionTakenCode = Environment.CargoDetails.ACTION_CODE;
+		-- SET count1=count1+1;
+		-- END WHILE;
+		-- DECLARE SupportingDocumentsDetail INTEGER CARDINALITY(Environment.MMDInspectionReportHeader.SupportingDocumentsDetails.SupportingDocumentsDetail[]);
+		-- SET count2 = 1;
+		-- WHILE count2<=SupportingDocumentsDetail DO
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.SupportingDocumentsDetails.SupportingDocumentsDetail.RecordNumber = Environment.NewDetail.RecordNumber;
+		SET outRef.DocumentDetails.MMDInspectionReportHeader.SupportingDocumentsDetails.SupportingDocumentsDetail.SupportingDocuments = Environment.NewDetail.SUPPORT_DOC;
+		-- SET count2=count2+1;
+		-- END WHILE;
+
+		SET outRef.DocumentSummary.IssuedDateTime = COALESCE(Environment.IssuedDateTime.IssuedDateTime,'');
+		--SET Environment.Format = 'XML';
+
+		SET count = CARDINALITY(Environment.ReceivingParty[]);
+		WHILE I <=count DO
+			IF CONTAINS (Environment.ReceivingParty[I].SFTP_PATH,'http') THEN
+				DECLARE xmlRequest BLOB ASBITSTREAM(OutputRoot.XMLNSC, 549,1208);
+				DECLARE ReplaceCarriageReturn BLOB X'0d0a';
+				SET xmlRequest = REPLACE(xmlRequest, ReplaceCarriageReturn);
+				SET Environment.variables.xmlRequest = CAST(xmlRequest AS CHARACTER CCSID 1208);
+				SET jreq = Environment.variables.xmlRequest;
+				CREATE FIELD OutputRoot.JSON.Data.ReqHeader;
+				SET OutputRoot.JSON.Data.ReqHeader.Channel_ID = 'IndianPCS';
+				SET OutputRoot.JSON.Data.ReqHeader.Service_ID = '7031';
+				SET OutputRoot.JSON.Data.ReqHeader.Request_ID = Environment.PCS_Audit.Header.MS_REF_NO;
+				SET Environment.ReqDate = PASSTHRU('SELECT CURRENT_TIMESTAMP AS WebReq');
+				SET OutputRoot.JSON.Data.ReqHeader.Request_Date = CAST(Environment.ReqDate[1].WebReq AS CHARACTER);
+				SET OutputRoot.JSON.Data.ReqHeader.Request_Date = REPLACE(OutputRoot.JSON.Data.ReqHeader.Request_Date,'TIMESTAMP ','');
+				SET OutputRoot.JSON.Data.ReqHeader.Request_Date = SUBSTRING(OutputRoot.JSON.Data.ReqHeader.Request_Date FROM 2 FOR 10);
+				SET OutputRoot.JSON.Data.ReqHeader.Request_Date = REPLACE(OutputRoot.JSON.Data.ReqHeader.Request_Date,'-','');
+				SET OutputRoot.JSON.Data.ReqBody.XML = jreq;
+				SET Environment.portcode = Environment.PCS_Audit.Header.PORT_CODE;
+				SET OutputLocalEnvironment.Destination.HTTP.RequestURL = Environment.ReceivingParty[I].SFTP_PATH;
+				SET Environment.variables.AuditSeq = PASSTHRU('SELECT NEXT VALUE FOR IPAOWNER.TPCS_AUDIT_API_SEQ AS SEQ;');
+				INSERT INTO Database.PCSIBM.TIBM_LOG_AUDIT_API(API_Request_ID,API_Channel_ID,API_Request_Date,SITE_ID,MS_REF_NO,MSG_TYPE,MSG_DIRECTION,API_URL,API_TIMESTAMP,TRM_STATUS,PAYLOAD_OUT,AUDITSEQ)
+				VALUES(TransactionId,'IndianPCS',CURRENT_TIMESTAMP,Environment.MMDINPHeader.PortCode,MsRefno,'MMDINP','OUTBOUND',Environment.ReceivingParty[I].SFTP_PATH,CURRENT_TIMESTAMP,'0',jreq,Environment.variables.AuditSeq[1].SEQ);
+				COMMIT;
+				SET Environment.variables.APICall = TRUE;
+				SET Environment.Flag = 'N';
+				PROPAGATE TO TERMINAL 'out2' DELETE NONE;
+			ELSE
+				SET OutputLocalEnvironment.Destination.File.Name=Environment.ReceivingParty.FILE_NAME;
+                SET OutputLocalEnvironment.Destination.File.Remote.ServerDirectory=Environment.ReceivingParty[I].SFTP_PATH;
+                
+                SET Environment.PCS_Audit.Details.Message.FILE_NAME=Environment.ReceivingParty.FILE_NAME;
+                SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO=Environment.ReceivingParty[I].SFTP_PATH;
+                SET Environment.Flag = 'N';
+                SET Environment.PCS_Audit.Database.DB_SP_STATUS ='S';
+                SET Environment.PCS_Audit.Database.DB_SP_REMARK ='Executed successfully';
+                SET Environment.PCS_Audit.Database.EVENT_NAME ='Generation';
+                SET Environment.variables.APICall = NULL;
+                SET OutputRoot.JSON = NULL;
+
+				PROPAGATE TO TERMINAL 'out' DELETE NONE;
+			END IF;
+			SET I=I+1;
+		END WHILE;
+
+		IF(Environment.variables.APICall=TRUE) THEN
+		RETURN FALSE;
+	END IF;
+
+	SET I = 1;
+	SET count = 1;
+	SET count = CARDINALITY(Environment.ReceivingParty[]);
+	DECLARE Sftppath,port CHARACTER;
+	WHILE I<=count DO
+		SET Sftppath = COALESCE(Sftppath,'')||Environment.ReceivingParty[I].SFTP_PATH;
+		SET Sftppath = Sftppath ||',';
+		SET port = COALESCE(port,'')||Environment.ReceivingParty[I].ReceivingParty;
+		SET port = port ||',';
+		SET I=I+1;
+	END WHILE;
+	SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Sftppath;
+	SET Environment.PCS_Audit.Header.PORT_CODE = port;
+	SET Environment.PCS_Audit.Header.FILE_NAME = Environment.ReceivingParty.FILE_NAME;
+	SET Environment.Flag = 'Y';
+	SET Environment.variables.APICall = NULL;
+	PROPAGATE TO TERMINAL 'out1';
+	RETURN FALSE;
+	--END IF;
+	PROPAGATE TO TERMINAL 'out';
+END;
+CREATE PROCEDURE EDI_XGetMMDINP(IN p1 CHARACTER)
+LANGUAGE DATABASE
+DYNAMIC RESULT SETS 6
+EXTERNAL NAME "dbo.EDI_XGetMMDINP";
+END MODULE;
+
+
+CREATE COMPUTE MODULE GenMMDINP_Notify_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE resp CHARACTER;
+		DECLARE inCCSID INT 1208;
+		DECLARE inEncoding INT 546;
+		DECLARE crmno CHARACTER;
+		DECLARE blobdata BLOB;
+
+		DECLARE crlf CHAR CAST(CAST('X''0A''' AS BLOB) AS CHAR CCSID 1208);
+
+		SET OutputRoot.XML.PCS_Audit.Header.MS_REF_NO = Environment.PCS_Audit.Header.MS_REF_NO;
+		SET OutputRoot.XML.PCS_Audit.Header.MSG_UID = Environment.PCS_Audit.Header.MSG_UID;
+		SET OutputRoot.XML.PCS_Audit.Header.MSG_TYPE = Environment.PCS_Audit.Header.MSG_TYPE;
+		SET OutputRoot.XML.PCS_Audit.Header.MSG_TIME = Environment.PCS_Audit.Header.MSG_TIME;
+		SET OutputRoot.XML.PCS_Audit.Header.MSG_SNDR = Environment.PCS_Audit.Header.MSG_SNDR;
+		SET OutputRoot.XML.PCS_Audit.Header.Status = Environment.PCS_Audit.Header.Status;
+		SET OutputRoot.XML.PCS_Audit.Header.PORT_CODE = Environment.PCS_Audit.Header.PORT_CODE;
+
+
+		SET OutputRoot.XML.PCS_Audit.Details.Message.EDI_START_TS = Environment.PCS_Audit.Details.Message.EDI_START_TS;
+		SET OutputRoot.XML.PCS_Audit.Details.Message.EDI_END_TS = Environment.PCS_Audit.Details.Message.EDI_END_TS;
+		SET OutputRoot.XML.PCS_Audit.Details.Message.FILE_NAME = Environment.PCS_Audit.Details.Message.FILE_NAME;
+		SET OutputRoot.XML.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO;
+		IF (Environment.variables.APICall = TRUE) THEN
+			SET OutputRoot.XML.PCS_Audit.Details.Message.FILE_NAME = 'NoFile';
+			SET OutputRoot.XML.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = 'NoDrop';
+		END IF;
+		SET OutputRoot.XML.PCS_Audit.Details.Database.DB_SP_START_TS = Environment.PCS_Audit.Database.DB_SP_START_TS;
+		SET OutputRoot.XML.PCS_Audit.Details.Database.DB_SP_END_TS = Environment.PCS_Audit.Database.DB_SP_END_TS;
+		SET OutputRoot.XML.PCS_Audit.Details.Database.DB_SP_REMARK = Environment.PCS_Audit.Database.DB_SP_REMARK;
+		SET OutputRoot.XML.PCS_Audit.Details.Database.DB_SP_STATUS = Environment.PCS_Audit.Database.DB_SP_STATUS;
+		SET OutputRoot.XML.PCS_Audit.Details.Database.EVENT_NAME = Environment.PCS_Audit.Database.EVENT_NAME;
+		PROPAGATE TO TERMINAL 'out3';		
+
+
+		RETURN FALSE;
+
+
+	END;
+END MODULE;
+
+CREATE COMPUTE MODULE GenMMDINP_ErrorUpdate_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE blobdata BLOB;
+		DECLARE resp,crmno CHARACTER;
+		-- SET blobdata = ASBITSTREAM(InputRoot.JSON.Data);
+		SET resp = CAST(InputRoot.BLOB.BLOB as character ccsid 1208);
+		SET crmno = Environment.PCS_Audit.Header.MS_REF_NO;
+		UPDATE Database.PCSIBM.TIBM_LOG_AUDIT_API AS SP SET TRM_STATUS = '0',RES_PAYLOAD = resp WHERE SP.MS_REF_NO = crmno AND SP.AUDITSEQ = Environment.variables.AuditSeq[1].SEQ;
+		COMMIT;
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;

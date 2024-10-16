@@ -1,0 +1,96 @@
+BROKER SCHEMA OUTBOUND_TEXT_XML
+
+
+CREATE COMPUTE MODULE MMDVDO_Data_textCreation_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE TransactionId,Format CHARACTER;
+		DECLARE jreq CHARACTER;
+		DECLARE MsRefno CHARACTER;
+		DECLARE I,count,bargecount,J INTEGER 1;
+		SET TransactionId = Environment.variables.txnID;
+		SET Format = InputRoot.JSON.Data.JMB.EDI.Format;
+		SET MsRefno = CAST(TransactionId AS CHARACTER CCSID 1208);
+		SET Environment.PCS_Audit.Header.MS_REF_NO = TransactionId;
+		SET Environment.PCS_Audit.Header.MSG_UID = UUIDASCHAR;
+		SET Environment.PCS_Audit.Header.MSG_TYPE = MessageFlowLabel;
+		SET Environment.PCS_Audit.Header.MSG_TIME = CURRENT_TIMESTAMP;
+		SET Environment.PCS_Audit.Header.MSG_SNDR = BrokerUserId;
+		SET Environment.MsRefno = TransactionId;
+		SET Environment.Inputtype = InputRoot.JSON.Data.JMB.EDI.Action_In;
+		SET Environment.PCS_Audit.Database.DB_SP_START_TS = CURRENT_TIMESTAMP;
+		CALL EDI_TGetMMDVDO(TransactionId, Environment.TXTResult1[],Environment.TXTResult2[],Environment.TXTResult3[],Environment.TXTResult4[],Environment.TXTResult5[]);
+		SET Environment.PCS_Audit.Header.PORT_CODE = Environment.TXTResult1.PortCode;
+		SET Environment.Flag = 'Y';
+		SET Environment.Format = 'TXT';
+		SET Environment.PCS_Audit.Database.DB_SP_END_TS = CURRENT_TIMESTAMP;
+
+		SET Environment.variables.dbEndTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS DBENDTIME;');
+		SET OutputRoot.Properties.CodedCharSetId = 1208;
+
+		SET OutputRoot.Properties.MessageType ='{}:MMDVDO';
+		SET OutputRoot.Properties.MessageSet ='{JMB_DFDL}';
+		SET OutputRoot.Properties.ReplyProtocol = 'FILE';
+
+		SET OutputRoot.DFDL.MMDVDO.UNH.DocumentType = COALESCE(Environment.TXTResult1.DocumentType,'');
+		SET OutputRoot.DFDL.MMDVDO.UNH.DocumentName = COALESCE(Environment.TXTResult1.DocumentName,'');
+		SET OutputRoot.DFDL.MMDVDO.UNH.DocumentNumber = COALESCE(Environment.TXTResult1.DocumentNumber,'');
+		SET OutputRoot.DFDL.MMDVDO.UNH.CommonRefNumber = COALESCE(Environment.TXTResult1.CommonRefNumber,'');
+		SET OutputRoot.DFDL.MMDVDO.UNH.MessageType = COALESCE(Environment.TXTResult1.Messagetype,'');
+		SET OutputRoot.DFDL.MMDVDO.UNH.SenderID = COALESCE(Environment.TXTResult1.SenderID,'');
+
+		--RPD
+		DECLARE countRecord INTEGER 0;
+		DECLARE i INTEGER 1;
+
+		SET countRecord = CARDINALITY(Environment.TXTResult2[]);
+
+		WHILE countRecord > 0 DO
+			SET OutputRoot.DFDL.MMDVDO.RPD.RecipientsID[i] = Environment.TXTResult2[i].Receivingparty;
+			SET i = i + 1;
+			SET countRecord = countRecord - 1;
+		END WHILE;
+		
+		-- NPD
+		DECLARE countRecord1 INTEGER 0;
+		DECLARE j INTEGER 1;
+
+		SET countRecord1 = CARDINALITY(Environment.TXTResult3[]);
+
+		WHILE countRecord1 > 0 DO
+			SET OutputRoot.DFDL.MMDVDO.NPD.NotifyPartyIDs[j] = Environment.TXTResult3[j].NotifyParty;
+			SET j = j + 1;
+			SET countRecord1 = countRecord1 - 1;
+		END WHILE;
+		
+		
+		SET OutputRoot.DFDL.MMDVDO.VDO. IMONumber = COALESCE(Environment.TXTResult4.IMONumber,'');
+		SET OutputRoot.DFDL.MMDVDO.VDO. VesselName = COALESCE(Environment.TXTResult4.SHIP_NAME,'');
+		SET OutputRoot.DFDL.MMDVDO.VDO. AgeOfVessel = COALESCE(Environment.TXTResult4.AGE_OF_VESSEL,'');
+		SET OutputRoot.DFDL.MMDVDO.VDO. ClassificationSociety = COALESCE(Environment.TXTResult4.CLASSIFICATION_SOCIETY,'');
+		SET OutputRoot.DFDL.MMDVDO.VDO. FlagState = COALESCE(Environment.TXTResult4.SHIP_FLAG,'');
+		SET OutputRoot.DFDL.MMDVDO.VDO. PortOfRegistry = COALESCE(Environment.TXTResult4.PORT_OF_REGISTRY,'');
+		SET OutputRoot.DFDL.MMDVDO.VDO. MasterName = COALESCE(Environment.TXTResult4.MASTER_NAME,'');
+		SET OutputRoot.DFDL.MMDVDO.VDO. CurrentPort = COALESCE(Environment.TXTResult4.CURRENT_PORT,'');
+		SET OutputRoot.DFDL.MMDVDO.VDO. InspectionType = COALESCE(Environment.TXTResult4.INSPECTION_TYPE,'');
+		SET OutputRoot.DFDL.MMDVDO.VDO. InspectionDate = COALESCE(Environment.TXTResult4.INSPECTION_DATETIME,'');
+		SET OutputRoot.DFDL.MMDVDO.VDO. InspectingAuthority = COALESCE(Environment.TXTResult4.ISSUING_OFFICER_NAME,'');
+		SET OutputRoot.DFDL.MMDVDO.VDO. MMDOfficeLocation = COALESCE(Environment.TXTResult4.MMD_OFFICE_LOCATION,'');
+		SET OutputRoot.DFDL.MMDVDO.VDO. LocationOfTheVessel = COALESCE(Environment.TXTResult4.CURRENT_PORT,'');
+		SET OutputRoot.DFDL.MMDVDO.VDO. ReportedDeficiency = COALESCE(Environment.TXTResult4.REPORTED_DEFICIENCY,'');
+		SET OutputRoot.DFDL.MMDVDO.VDO. Category = COALESCE(Environment.TXTResult4.CATEGORY,'');
+		SET OutputRoot.DFDL.MMDVDO.VDO. DetentionOrderNumber = COALESCE(Environment.TXTResult4.DETENTION_ORDER_NUMBER,'');
+		SET OutputRoot.DFDL.MMDVDO.VDO. DetentionOrderDate = COALESCE(Environment.TXTResult4.DETENTION_ORDER_DATE,'');
+		
+		SET OutputRoot.DFDL.MMDVDO.UNT.IssuedDateTime = COALESCE(Environment.TXTResult5.IssuedDateTime,'');
+		
+		SET Environment.PCS_Audit.Details.Message.EDI_END_TS = CURRENT_TIMESTAMP;
+
+
+	END;
+	CREATE PROCEDURE EDI_TGetMMDVDO(IN p1 CHARACTER)
+	LANGUAGE DATABASE
+	DYNAMIC RESULT SETS 5
+	EXTERNAL NAME "dbo.EDI_TGetMMDVDO";
+
+END MODULE;

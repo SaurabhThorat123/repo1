@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 07 Crimsonlogic Pte Ltd; Version : 1.0-->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:PCS-CMN="PCS_Common_Types">
+	<xsd:import namespace="PCS_Common_Types" schemaLocation="PCS_CommonTypes.xsd"/>
+	<xsd:element name="RequestForFreePratique" type="RequestForFreePratiqueType"/>
+	<xsd:complexType name="RequestForFreePratiqueType">
+		<xsd:sequence>
+			<xsd:element name="DocumentHeader" type="PCS-CMN:DocumentHeaderType"/>
+			<xsd:element name="DocumentDetails" type="DocumentDetailsType"/>
+			<xsd:element name="DocumentSummary" type="PCS-CMN:DocumentSummaryType"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="DocumentDetailsType">
+		<xsd:sequence>
+			<xsd:element name="RequestForFreePratiqueDetails" type="RequestForFreePratiqueDetailsType"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="RequestForFreePratiqueDetailsType">
+		<xsd:sequence>
+			<xsd:element name="RecordType" type="PCS-CMN:RecordType"/>
+			<xsd:element name="VCN" type="PCS-CMN:VCNType"/>
+			<xsd:element name="CallSign" type="PCS-CMN:CodeIDNameTextType"/>
+			<xsd:element name="IMONumber" type="PCS-CMN:CodeIDNameTextType"/>
+			<xsd:element name="VoyageNumber" type="PCS-CMN:CodeIDNameTextType"/>
+			<xsd:element name="MasterName" type="PCS-CMN:StandardNameTextType"/>
+			<xsd:element name="AnchorDroppedOrExpectedToDropDateTime" type="PCS-CMN:DateTimeType" minOccurs="0"/>
+			<xsd:element name="ShipSanitationControlExemptionCertNo" type="PCS-CMN:CodeIDNameTextType" minOccurs="0"/>
+			<xsd:element name="IssueDate" type="PCS-CMN:DateType" minOccurs="0"/>
+			<xsd:element name="IssuingPort" type="PCS-CMN:PortEquipmentCodeType" minOccurs="0"/>
+			<xsd:element name="ShipSanitationControlCertificate" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="ReInspectionDate" type="PCS-CMN:DateType" minOccurs="0"/>
+			<xsd:element name="CompliedControlMeasures" type="PCS-CMN:BooleanType" minOccurs="0"/>
+			<xsd:element name="DescriptionOfMeasures" type="PCS-CMN:DescType" minOccurs="0"/>			
+			<xsd:element name="PortsCalledDuringTheLast30Days" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="PortsCalledDuringTheLast30DaysSummary" type="PortsCalledDuringTheLast30DaysSummaryType" minOccurs="0"/>
+			<xsd:element name="ComingFromYellowFeverArea" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="ComingFromYellowFeverAreaSummary" type="ComingFromYellowFeverAreaSummaryType" minOccurs="0"/>
+			<xsd:element name="PersonRescuedFromSeaOnBoard" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="PersonRescuedFromSeaOnBoardSummary" type="PersonRescuedFromSeaOnBoardSummaryType" minOccurs="0"/>
+			<xsd:element name="StowawayOnBoard" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="StowawayOnBoardSummary" type="StowawayOnBoardSummaryType" minOccurs="0"/>
+			<xsd:element name="CrewOrPassengerEmbarkedInTheLastOneMonth" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="CrewOrPassengerEmbarkedInTheLastOneMonthSummary" type="CrewOrPassengerEmbarkedInTheLastOneMonthSummaryType" minOccurs="0"/>
+			<xsd:element name="AnimalsOnBoard" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="DetailsOfAnimalsOnBoard" type="PCS-CMN:DescType" minOccurs="0"/>
+			<xsd:element name="IsAllTheAnimalVaccinated" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="DetailsOfAnimalsAtNotVaccinated" type="PCS-CMN:DescType" minOccurs="0"/>
+			<xsd:element name="AnyRatsOrMiceOnBoard" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="AnyDeathOfRatsOrMiceDuringVoyage" type="PCS-CMN:BooleanType" minOccurs="0"/>
+			<xsd:element name="AnyCrewTreatedInLastOneMonth" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="AnyCrewTreatedInLastOneMonthSummary" type="AnyCrewTreatedInLastOneMonthSummaryType" minOccurs="0"/>
+			<xsd:element name="DeathOnBoard" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="CauseOfDeath" type="PCS-CMN:CodeIDNameTextType" minOccurs="0"/>
+			<xsd:element name="DetailOfDeath" type="PCS-CMN:DescType" minOccurs="0"/>
+			<xsd:element name="CurrentSicknessOnBoard" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="DetailsOfCurrentSickness" type="PCS-CMN:DescType" minOccurs="0"/>
+			<xsd:element name="AnyConditionInfectionOrSpreadOfDiseaseDuringVoyage" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="AnyConditionInfectionOrSpreadOfDiseaseDuringVoyageSummary" type="AnyConditionInfectionOrSpreadOfDiseaseDuringVoyageType" minOccurs="0"/>		
+			<xsd:element name="AnySanitaryMeasuresAppliedLastOneMonth" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="AnySanitaryMeasuresAppliedLastOneMonthSummary" type="AnySanitaryMeasuresAppliedLastOneMonthSummaryType" minOccurs="0"/>
+			<xsd:element name="FreshWaterRequired" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="ProvisionsRequirement" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="SludgeDisposal" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="GarbageDisposal" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="DeclarationTrueByMaster" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="MasterAwaredOfTheDeclaration" type="PCS-CMN:BooleanType"/>
+			<xsd:element name="ShippingAgentCode" type="PCS-CMN:AgencyType" minOccurs="0"/>	
+		</xsd:sequence>
+	</xsd:complexType>
+
+	<xsd:complexType name="ComingFromYellowFeverAreaSummaryType">
+		<xsd:sequence>
+			<xsd:element name="ComingFromYellowFeverAreaDetails" type="ComingFromYellowFeverAreaDetailsType" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="ComingFromYellowFeverAreaDetailsType">
+		<xsd:sequence>
+			<xsd:element name="RecordNumber" type="PCS-CMN:RecordNumberType"/>
+			<xsd:element name="Port" type="PCS-CMN:PortEquipmentCodeType"/>
+			<xsd:element name="Country" type="PCS-CMN:CountryCodeType"/>
+			<xsd:element name="DepartureDate" type="PCS-CMN:DateType"/>
+		</xsd:sequence>
+	</xsd:complexType>
+
+	<xsd:complexType name="PersonRescuedFromSeaOnBoardSummaryType">
+		<xsd:sequence>
+			<xsd:element name="PersonRescuedFromSeaOnBoardDetails" type="PersonRescuedFromSeaOnBoardDetailsType" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="PersonRescuedFromSeaOnBoardDetailsType">
+		<xsd:sequence>			
+			<xsd:element name="RecordNumber" type="PCS-CMN:RecordNumberType"/>
+			<xsd:element name="NameOfThePerson" type="PCS-CMN:StandardNameTextType"/>
+			<xsd:element name="Nationality" type="PCS-CMN:CountryCodeType"/>
+			<xsd:element name="PortEmbarkedOrFound" type="PCS-CMN:PortEquipmentCodeType"/>
+			<xsd:element name="HealthStatus" type="PCS-CMN:IMOClassType"/>
+		</xsd:sequence>
+	</xsd:complexType>
+
+	<xsd:complexType name="StowawayOnBoardSummaryType">
+		<xsd:sequence>
+			<xsd:element name="StowawayOnBoardDetails" type="StowawayOnBoardDetailsType" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="StowawayOnBoardDetailsType">
+		<xsd:sequence>			
+			<xsd:element name="RecordNumber" type="PCS-CMN:RecordNumberType"/>
+			<xsd:element name="NameOfThePerson" type="PCS-CMN:StandardNameTextType"/>
+			<xsd:element name="Nationality" type="PCS-CMN:CountryCodeType"/>
+			<xsd:element name="PortEmbarkedOrFound" type="PCS-CMN:PortEquipmentCodeType"/>
+			<xsd:element name="HealthStatus" type="PCS-CMN:IMOClassType"/>
+		</xsd:sequence>
+	</xsd:complexType>
+
+	<xsd:complexType name="CrewOrPassengerEmbarkedInTheLastOneMonthSummaryType">
+		<xsd:sequence>
+			<xsd:element name="CrewOrPassengerEmbarkedInTheLastOneMonthDetails" type="CrewOrPassengerEmbarkedInTheLastOneMonthDetailsType" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="CrewOrPassengerEmbarkedInTheLastOneMonthDetailsType">
+		<xsd:sequence>			
+			<xsd:element name="RecordNumber" type="PCS-CMN:RecordNumberType"/>
+			<xsd:element name="Name" type="PCS-CMN:StandardNameTextType"/>
+			<xsd:element name="NationalityOfCrewOrPassenger" type="PCS-CMN:CountryCodeType"/>
+			<xsd:element name="PortOfEmbarkation" type="PCS-CMN:PortEquipmentCodeType"/>
+			<xsd:element name="DateOfEmbarkation" type="PCS-CMN:DateType"/>
+		</xsd:sequence>
+	</xsd:complexType>
+
+	<xsd:complexType name="PortsCalledDuringTheLast30DaysSummaryType">
+		<xsd:sequence>
+			<xsd:element name="PortsCalledDuringTheLast30DaysDetails" type="PortsCalledDuringTheLast30DaysDetailsType" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="PortsCalledDuringTheLast30DaysDetailsType">
+		<xsd:sequence>			
+			<xsd:element name="RecordNumber" type="PCS-CMN:RecordNumberType"/>
+			<xsd:element name="SLNo" type="PCS-CMN:NumberType"/>			
+			<xsd:element name="PorCode" type="PCS-CMN:PortEquipmentCodeType"/>
+			<xsd:element name="DepartureDate" type="PCS-CMN:DateType"/>
+		</xsd:sequence>
+	</xsd:complexType>
+
+	<xsd:complexType name="AnyCrewTreatedInLastOneMonthSummaryType">
+		<xsd:sequence>
+			<xsd:element name="AnyCrewTreatedInLastOneMonthDetails" type="AnyCrewTreatedInLastOneMonthDetailsType" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="AnyCrewTreatedInLastOneMonthDetailsType">
+		<xsd:sequence>			
+			<xsd:element name="RecordNumber" type="PCS-CMN:RecordNumberType"/>
+			<xsd:element name="CrewName" type="PCS-CMN:StandardNameTextType"/>			
+			<xsd:element name="TypeOfIllness" type="PCS-CMN:IMOClassType"/>
+			<xsd:element name="TreatmentParticulars" type="PCS-CMN:DescType"/>
+		</xsd:sequence>
+	</xsd:complexType>
+
+	<xsd:complexType name="AnySanitaryMeasuresAppliedLastOneMonthSummaryType">
+		<xsd:sequence>
+			<xsd:element name="AnySanitaryMeasuresAppliedLastOneMonthDetails" type="AnySanitaryMeasuresAppliedLastOneMonthDetailsType" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="AnySanitaryMeasuresAppliedLastOneMonthDetailsType">
+		<xsd:sequence>			
+			<xsd:element name="RecordNumber" type="PCS-CMN:RecordNumberType"/>
+			<xsd:element name="Measures" type="PCS-CMN:ShippingAgentCodeTextType"/>
+		</xsd:sequence>
+	</xsd:complexType>
+
+	<xsd:complexType name="AnyConditionInfectionOrSpreadOfDiseaseDuringVoyageType">
+		<xsd:sequence>
+			<xsd:element name="AnyConditionInfectionOrSpreadOfDiseaseDuringVoyageDetails" type="AnyConditionInfectionOrSpreadOfDiseaseDuringVoyageDetailsType" maxOccurs="unbounded"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<xsd:complexType name="AnyConditionInfectionOrSpreadOfDiseaseDuringVoyageDetailsType">
+		<xsd:sequence>			
+			<xsd:element name="RecordNumber" type="PCS-CMN:RecordNumberType"/>
+			<xsd:element name="MainSymptomsForConsideringInfectiousDiseases" type="PCS-CMN:Char2CodeType"/>
+			<xsd:element name="SubSymptomsForConsideringInfectiousDiseases" type="PCS-CMN:Char4CodeType"/>
+		</xsd:sequence>
+	</xsd:complexType>
+
+
+</xsd:schema>

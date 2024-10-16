@@ -1,0 +1,15 @@
+
+
+CREATE COMPUTE MODULE RAFPRQ_Req_Q_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN	
+		SET OutputRoot.JSON.Data = InputRoot.JSON.Data;
+		PROPAGATE TO TERMINAL 'out1';
+		SET OutputRoot = NULL;
+		SET OutputRoot.JSON.Data.JMBResp.Status = 'SUCCESS';
+		SET OutputRoot.JSON.Data.JMBResp.SEVERITY='0';
+		SET OutputRoot.JSON.Data.JMBResp.Message='SUCCESS';
+		PROPAGATE TO TERMINAL 'out';
+		RETURN FALSE;	
+	END;
+END MODULE;

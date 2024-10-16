@@ -1,0 +1,86 @@
+
+
+CREATE COMPUTE MODULE FREPRQ_MAIN_basic_form
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+
+
+		DECLARE I,bargecount,J,K INTEGER 1;
+		DECLARE count INTEGER;
+		DECLARE jreq CHARACTER;
+		SET Environment.Format = 'XML';
+		SET count = CARDINALITY(Environment.ReceivingParty[]);
+
+
+		WHILE (K <= count) DO
+			--SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = COALESCE(Environment.ReceivingParty[count].ReceivingParty,'');
+			SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = COALESCE(Environment.ReceivingParty[K].SFTP_PATH,'');
+
+
+			IF CONTAINS (Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO,'http') THEN
+				DECLARE xmlRequest BLOB ASBITSTREAM(InputRoot.XMLNSC, 549,1208);
+				DECLARE ReplaceCarriageReturn BLOB X'0d0a';
+				SET xmlRequest = REPLACE(xmlRequest, ReplaceCarriageReturn);
+				SET Environment.variables.xmlRequest = CAST(xmlRequest AS CHARACTER CCSID 1208);
+				SET jreq = Environment.variables.xmlRequest;
+				--SET jreq = InputRoot.XMLNSC;
+				CREATE FIELD OutputRoot.JSON.Data.ReqHeader;
+				SET OutputRoot.JSON.Data.ReqHeader.Channel_ID = 'IndianPCS';
+				SET OutputRoot.JSON.Data.ReqHeader.Service_ID = '7031';
+				SET OutputRoot.JSON.Data.ReqHeader.Request_ID = Environment.PCS_Audit.Header.MS_REF_NO;
+				SET Environment.ReqDate = PASSTHRU('SELECT CURRENT_TIMESTAMP AS WebReq');
+				SET OutputRoot.JSON.Data.ReqHeader.Request_Date = CAST(Environment.ReqDate[1].WebReq AS CHARACTER);
+				SET OutputRoot.JSON.Data.ReqHeader.Request_Date = REPLACE(OutputRoot.JSON.Data.ReqHeader.Request_Date,'TIMESTAMP ','');
+				SET OutputRoot.JSON.Data.ReqHeader.Request_Date = SUBSTRING(OutputRoot.JSON.Data.ReqHeader.Request_Date FROM 2 FOR 10);
+				SET OutputRoot.JSON.Data.ReqHeader.Request_Date = REPLACE(OutputRoot.JSON.Data.ReqHeader.Request_Date,'-','');
+				SET OutputRoot.JSON.Data.ReqBody.XML = jreq;
+				SET Environment.portcode = Environment.PCS_Audit.Header.PORT_CODE;
+				SET OutputLocalEnvironment.Destination.HTTP.RequestURL = Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO;
+				SET Environment.variables.AuditSeq = PASSTHRU('SELECT NEXT VALUE FOR IPAOWNER.TPCS_AUDIT_API_SEQ AS SEQ;');
+				INSERT INTO Database.PCSIBM.TIBM_LOG_AUDIT_API(API_Request_ID,API_Channel_ID,API_Request_Date,SITE_ID,MS_REF_NO,MSG_TYPE,MSG_DIRECTION,API_URL,API_TIMESTAMP,TRM_STATUS,PAYLOAD_OUT,AUDITSEQ) 
+				VALUES(Environment.MsRefno,'IndianPCS',CURRENT_TIMESTAMP,Environment.CalinfHeader.PortCode,Environment.MsRefno,'FREPRQ','OUTBOUND',Environment.ReceivingParty[K].SFTP_PATH,CURRENT_TIMESTAMP,'0',jreq,Environment.variables.AuditSeq[1].SEQ);
+				COMMIT;
+				SET Environment.variables.APICall = TRUE;
+				SET Environment.Flag = 'N';
+				PROPAGATE TO TERMINAL 'out2' DELETE NONE;
+			ELSE
+				SET OutputLocalEnvironment.Destination.File.Name=Environment.ReceivingParty.FILE_NAME;
+				SET OutputRoot.XMLNSC = InputRoot.XMLNSC;
+				SET OutputLocalEnvironment.Destination.File.Remote.ServerDirectory=Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO;
+				SET Environment.Flag = 'N';
+				SET Environment.variables.APICall = NULL;
+				SET OutputRoot.JSON = NULL;
+--
+				SET OutputLocalEnvironment.Destination.HTTP.RequestURL = NULL;
+				SET OutputLocalEnvironment.WrittenDestination = NULL;
+
+				PROPAGATE TO TERMINAL 'out' DELETE NONE;
+			END IF;
+			SET K = K + 1;
+		END WHILE;
+
+		SET I=I+1;
+		--END WHILE;
+		SET I = 1;
+		SET count = 1;
+		SET count = CARDINALITY(Environment.ReceivingParty[]);
+		DECLARE Sftppath,port,PORT CHARACTER;
+		WHILE I<=count DO
+			SET Sftppath = COALESCE(Sftppath,'')||Environment.ReceivingParty[I].SFTP_PATH;
+			SET Sftppath = Sftppath ||',';
+			SET port = COALESCE(port,'')||Environment.ReceivingParty[I].ReceivingParty;
+			SET port = port ||',';
+			SET I=I+1;
+		END WHILE;
+		SET Environment.PCS_Audit.Details.Message.EDI_DIRECTORY_INFO = Sftppath;
+		--SET Environment.PCS_Audit.Header.PORT_CODE = port;
+		SET PORT = Environment.PCS_Audit.Header.PORT_CODE;
+		SET Environment.PCS_Audit.Header.PORT_CODE = PORT;
+		SET Environment.Flag = 'Y';
+		SET Environment.variables.APICall = NULL;
+		PROPAGATE TO TERMINAL 'out1';
+		RETURN FALSE;
+		--RETURN TRUE;
+	END;
+
+END MODULE;

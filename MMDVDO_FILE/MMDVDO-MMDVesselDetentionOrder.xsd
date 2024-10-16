@@ -1,0 +1,73 @@
+<xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="MMDVesselDetentionOrder">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="DocumentHeader">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="DocumentReference">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element type="xs:string" name="DocumentType"/>
+                    <xs:element type="xs:string" name="DocumentName"/>
+                    <xs:element type="xs:long" name="DocumentNumber"/>
+                    <xs:element type="xs:long" name="CommonRefNumber"/>
+                    <xs:element type="xs:byte" name="MessageType"/>
+                    <xs:element type="xs:string" name="SenderID"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="DocumentExchangeDetails">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="ReceivingPartyDetails">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element type="xs:string" name="ReceivingParty" maxOccurs="unbounded" minOccurs="0"/>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="NotifyPartyDetails">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element type="xs:string" name="NotifyParty" maxOccurs="unbounded" minOccurs="0"/>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="DocumentDetails">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="MMDVesselDetentionOrderDetails">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element type="xs:string" name="NameOfTheShip"/>
+                    <xs:element type="xs:string" name="FlagOfShip"/>
+                    <xs:element type="xs:int" name="IMONumber"/>
+                    <xs:element type="xs:long" name="DetentionOrderNumber"/>
+                    <xs:element type="xs:int" name="DetentionOrderDate"/>
+                    <xs:element type="xs:string" name="IssuingOfficerName"/>
+                    <xs:element type="xs:string" name="IssuingOfficerDesignation"/>
+                    <xs:element type="xs:string" name="MMDOfficeLocation"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="DocumentSummary">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element type="xs:long" name="IssuedDateTime"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

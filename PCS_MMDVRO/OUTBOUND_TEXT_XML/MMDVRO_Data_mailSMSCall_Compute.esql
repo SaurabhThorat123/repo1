@@ -1,0 +1,184 @@
+BROKER SCHEMA OUTBOUND_TEXT_XML
+
+
+CREATE COMPUTE MODULE MMDVRO_Data_mailSMSCall_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET Environment.variables.mailStartTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS MAILSTARTTIME;');
+		SET Environment.variables.mailEndTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS MAILENDTIME;');
+		SET Environment.variables.SMSStartTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS SMSSTARTTIME;');
+
+		DECLARE response BLOB ASBITSTREAM(InputRoot.JSON.Data, 549,1208);
+		DECLARE ReplaceCarriageReturn BLOB X'0d0a';
+		DECLARE crlf CHAR CAST(CAST('X''0A''' AS BLOB) AS CHAR CCSID 1208);
+		SET response = REPLACE(response, ReplaceCarriageReturn);
+		SET Environment.variables.response = CAST(response AS CHARACTER CCSID 1208);
+		IF (Environment.variables.APICall = TRUE) THEN
+			UPDATE Database.PCSIBM.TIBM_LOG_AUDIT_API AS SP SET TRM_STATUS = '1', RES_PAYLOAD = Environment.variables.response WHERE SP.MS_REF_NO = Environment.variables.txnID AND SP.AUDITSEQ = Environment.variables.AuditSeq[1].SEQ;
+			COMMIT;
+		END IF;
+		IF Environment.Flag = 'Y' THEN
+			IF Environment.Format = 'XML' THEN
+				---------------------------------------------------------------------XML------------------------------------------------------------------------------------
+				SET Environment.TemplatePA = 'Dear officials,'||crlf||crlf||
+				'Vessel '||COALESCE(Environment.CalinfHeader.SHIP_NAME,'')|| ' has been Released on '|| COALESCE(Environment.CalinfHeader.PortName,'')||'. Please find more details below'||crlf||crlf||
+				'Common Reference Number: '||COALESCE(Environment.CalinfHeader.CommonRefNumber,'') ||crlf||
+				'IMO Number: ' ||COALESCE(Environment.CalinfHeader.IMO_NUMBER,'') ||crlf||
+				'Age of Vessel: ' ||COALESCE(Environment.CalinfHeader.AGE_OF_VESSEL,'') ||crlf||
+				'Master Name: ' ||COALESCE(Environment.CalinfHeader.MASTER_NAME,'') ||crlf||
+				'MMD Office Location: ' ||COALESCE(Environment.CalinfHeader.MMD_OFFICE_LOCATION,'') ||crlf||
+				'Detention Order Number: ' ||COALESCE(Environment.CalinfHeader.DETENTION_ORDER_NUMBER,'') ||crlf||
+				'Detention Order Date: ' ||COALESCE(Environment.CalinfHeader.DETENTION_ORDER_DATE,'') ||crlf||
+				'Release Order Number: ' ||COALESCE(Environment.CalinfHeader.RELEASE_ORDER_NUMBER,'') ||crlf||
+				'Release Order Date: ' ||COALESCE(Environment.CalinfHeader.RELEASE_ORDER_DATE,'') ||crlf||crlf||
+				'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+				'Thanks & regards,'||crlf||
+				'Team NLPM ';
+
+				SET Environment.TemplateSA = 'Dear Shipping Agent,'||crlf||crlf||
+				'Vessel '||COALESCE(Environment.CalinfHeader.SHIP_NAME,'')|| ' has been Released on '|| COALESCE(Environment.CalinfHeader.PortName,'')||'. Please find more details below'||crlf||crlf||
+				'Common Reference Number: '||COALESCE(Environment.CalinfHeader.CommonRefNumber,'') ||crlf||
+				'IMO Number: ' ||COALESCE(Environment.CalinfHeader.IMO_NUMBER,'') ||crlf||
+				'Age of Vessel: ' ||COALESCE(Environment.CalinfHeader.AGE_OF_VESSEL,'') ||crlf||
+				'Master Name: ' ||COALESCE(Environment.CalinfHeader.MASTER_NAME,'') ||crlf||
+				'MMD Office Location: ' ||COALESCE(Environment.CalinfHeader.MMD_OFFICE_LOCATION,'') ||crlf||
+				'Detention Order Number: ' ||COALESCE(Environment.CalinfHeader.DETENTION_ORDER_NUMBER,'') ||crlf||
+				'Detention Order Date: ' ||COALESCE(Environment.CalinfHeader.DETENTION_ORDER_DATE,'') ||crlf||
+				'Release Order Number: ' ||COALESCE(Environment.CalinfHeader.RELEASE_ORDER_NUMBER,'') ||crlf||
+				'Release Order Date: ' ||COALESCE(Environment.CalinfHeader.RELEASE_ORDER_DATE,'') ||crlf||crlf||
+				'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+				'Thanks & regards,'||crlf||
+				'Team NLPM ';
+
+				IF (Environment.ReceivingParty.Port_Email_Id <> '') THEN
+					DECLARE RecieveCount INTEGER CARDINALITY (Environment.ReceivingParty[]);
+					DECLARE Recipientlist CHARACTER;
+					DECLARE K INTEGER 1;
+					WHILE (K <= RecieveCount) DO
+						IF (K = 1) THEN
+							SET Recipientlist = Environment.ReceivingParty[K].Port_Email_Id;
+						ELSE
+							SET Recipientlist = COALESCE(Recipientlist,'')||Environment.ReceivingParty[K].Port_Email_Id;
+						END IF;
+						SET Recipientlist = Recipientlist ||',';
+						SET K = K + 1;
+					END WHILE ;
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Vessel Release Order for Vessel '||COALESCE(Environment.CalinfHeader.SHIP_NAME,'')||'.'; --'SUBJECT';--
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+					PROPAGATE TO TERMINAL 'out1';
+				END IF;
+
+				IF (Environment.ReceivingParty.MMD_EMAIL_ID <> '') THEN
+					DECLARE RecieveCount INTEGER CARDINALITY (Environment.ReceivingParty[]);
+					DECLARE Recipientlist CHARACTER;
+					DECLARE K INTEGER 1;
+					WHILE (K <= RecieveCount) DO
+						IF (K = 1) THEN
+							SET Recipientlist = Environment.ReceivingParty[K].MMD_EMAIL_ID;
+						ELSE
+							SET Recipientlist = COALESCE(Recipientlist,'')||Environment.ReceivingParty[K].MMD_EMAIL_ID;
+						END IF;
+						SET Recipientlist = Recipientlist ||',';
+						SET K = K + 1;
+					END WHILE ;
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Vessel Release Order for Vessel '||COALESCE(Environment.CalinfHeader.SHIP_NAME,'')||'.'; --'SUBJECT';--
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+					PROPAGATE TO TERMINAL 'out1';
+				END IF;
+				IF (LENGTH(Environment.CalinfHeader.Sender_Email_id) <> 0) THEN
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.CalinfHeader.Sender_Email_id;
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Vessel Release Order for Vessel '||COALESCE(Environment.CalinfHeader.SHIP_NAME,'')||'.'; --'SUBJECT';----
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+					PROPAGATE TO TERMINAL 'out1';
+				END IF;				
+				-------------------------------------------------------------TXT----------------------------------------------------------------
+			ELSEIF Environment.Format = 'TXT' THEN
+				SET Environment.TemplatePA = 'Dear officials,'||crlf||crlf||
+				'Vessel '||COALESCE(Environment.TXTResult4.SHIP_NAME,'')|| ' has been Released on '|| COALESCE(Environment.TXTResult1.PortName,'')||'. Please find more details below'||crlf||crlf||
+				'Common Reference Number: '||COALESCE(Environment.TXTResult1.CommonRefNumber,'') ||crlf||
+				'IMO Number: ' ||COALESCE(Environment.TXTResult4.IMO_NUMBER,'') ||crlf||
+				'Age of Vessel: ' ||COALESCE(Environment.TXTResult4.AGE_OF_VESSEL,'') ||crlf||
+				'Master Name: ' ||COALESCE(Environment.TXTResult4.MASTER_NAME,'') ||crlf||
+				'MMD Office Location: ' ||COALESCE(Environment.TXTResult4.MMD_OFFICE_LOCATION,'') ||crlf||
+				'Detention Order Number: ' ||COALESCE(Environment.TXTResult4.DETENTION_ORDER_NUMBER,'') ||crlf||
+				'Detention Order Date: ' ||COALESCE(Environment.TXTResult4.DETENTION_ORDER_DATE,'') ||crlf||
+				'Release Order Number: ' ||COALESCE(Environment.TXTResult4.RELEASE_ORDER_NUMBER,'') ||crlf||
+				'Release Order Date: ' ||COALESCE(Environment.TXTResult4.RELEASE_ORDER_DATE,'') ||crlf||crlf||
+				'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+				'Thanks & regards,'||crlf||
+				'Team NLPM ';
+
+				SET Environment.TemplateSA = 'Dear Shipping Agent,'||crlf||crlf||
+				'Vessel '||COALESCE(Environment.TXTResult4.SHIP_NAME,'')|| ' has been Released on '|| COALESCE(Environment.TXTResult1.PortName,'')||'. Please find more details below'||crlf||crlf||
+				'Common Reference Number: '||COALESCE(Environment.TXTResult1.CommonRefNumber,'') ||crlf||
+				'IMO Number: ' ||COALESCE(Environment.TXTResult4.IMO_NUMBER,'') ||crlf||
+				'Age of Vessel: ' ||COALESCE(Environment.TXTResult4.AGE_OF_VESSEL,'') ||crlf||
+				'Master Name: ' ||COALESCE(Environment.TXTResult4.MASTER_NAME,'') ||crlf||
+				'MMD Office Location: ' ||COALESCE(Environment.TXTResult4.MMD_OFFICE_LOCATION,'') ||crlf||
+				'Detention Order Number: ' ||COALESCE(Environment.TXTResult4.DETENTION_ORDER_NUMBER,'') ||crlf||
+				'Detention Order Date: ' ||COALESCE(Environment.TXTResult4.DETENTION_ORDER_DATE,'') ||crlf||
+				'Release Order Number: ' ||COALESCE(Environment.TXTResult4.RELEASE_ORDER_NUMBER,'') ||crlf||
+				'Release Order Date: ' ||COALESCE(Environment.TXTResult4.RELEASE_ORDER_DATE,'') ||crlf||crlf||
+				'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+				'Thanks & regards,'||crlf||
+				'Team NLPM ';
+
+				IF (Environment.TXTResult2.Port_email_id <> '') THEN
+					DECLARE RecieveCount INTEGER CARDINALITY (Environment.TXTResult2[]);
+					DECLARE Recipientlist CHARACTER;
+					DECLARE K INTEGER 1;
+					WHILE (K <= RecieveCount) DO
+						IF (K = 1) THEN
+							SET Recipientlist = Environment.TXTResult2[K].Port_email_id;
+						ELSE
+							SET Recipientlist = COALESCE(Recipientlist,'')||Environment.TXTResult2[K].Port_email_id;
+						END IF;
+						SET Recipientlist = Recipientlist ||',';
+						SET K = K + 1;
+					END WHILE ;
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Vessel Release Order for Vessel '||COALESCE(Environment.TXTResult1.SHIP_NAME,'')||'.'; --'SUBJECT';--
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+					PROPAGATE TO TERMINAL 'out1';
+				END IF;
+
+				IF (Environment.TXTResult2.Mmd_email_id <> '') THEN
+					DECLARE RecieveCount INTEGER CARDINALITY (Environment.TXTResult2[]);
+					DECLARE Recipientlist CHARACTER;
+					DECLARE K INTEGER 1;
+					WHILE (K <= RecieveCount) DO
+						IF (K = 1) THEN
+							SET Recipientlist = Environment.TXTResult2[K].Mmd_email_id;
+						ELSE
+							SET Recipientlist = COALESCE(Recipientlist,'')||Environment.TXTResult2[K].Mmd_email_id;
+						END IF;
+						SET Recipientlist = Recipientlist ||',';
+						SET K = K + 1;
+					END WHILE ;
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Vessel Release Order for Vessel '||COALESCE(Environment.TXTResult1.SHIP_NAME,'')||'.'; --'SUBJECT';--
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+					PROPAGATE TO TERMINAL 'out1';
+				END IF;
+				IF (LENGTH(Environment.TXTResult1.Sender_Email_id) <> 0) THEN
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.TXTResult1.Sender_Email_id;
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Vessel Release Order for Vessel '||COALESCE(Environment.TXTResult1.SHIP_NAME,'')||'.'; --'SUBJECT';----
+					SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+					PROPAGATE TO TERMINAL 'out1';
+				END IF;
+
+			END IF;
+
+		END IF;
+
+
+	END;
+END MODULE;

@@ -1,0 +1,16 @@
+
+
+CREATE COMPUTE MODULE Email_Notifications_Compute2
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		Set Environment.PCS_Audit.Details.Email.MAIL_END_TS=CURRENT_TIMESTAMP;
+		set OutputRoot.XML.PCS_Audit.Header=Environment.PCS_Audit.Details.Header;
+		Set OutputRoot.XML.PCS_Audit.Details.Email.MAIL_START_TS=Environment.PCS_Audit.Details.Email.MAIL_START_TS;
+		Set OutputRoot.XML.PCS_Audit.Details.Email.MAILING_ID=Environment.PCS_Audit.Details.Email.MAILING_ID;
+		Set OutputRoot.XML.PCS_Audit.Details.Email.MAIL_NOTIFICATION_STATUS='Failure';
+		Set OutputRoot.XML.PCS_Audit.Details.Email.MAIL_END_TS=Environment.PCS_Audit.Details.Email.MAIL_END_TS;	
+		propagate to terminal 'out';
+		RETURN False;
+	END;
+
+END MODULE;

@@ -1,0 +1,1546 @@
+BROKER SCHEMA OUTBOUND_TEXT_XML
+
+CREATE COMPUTE MODULE PILOT_Get_HLTDLR_Data_GetFormatType_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET Environment.variables.ediStartTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS EDISTARTTIME;');
+		SET Environment.variables.txnID = InputRoot.JSON.Data.JMB.EDI.Common_Ref;
+		DECLARE MessageName CHARACTER InputRoot.JSON.Data.JMB.EDI.Action_In;
+		DECLARE request BLOB ASBITSTREAM(InputRoot.JSON.Data, 549,1208);
+		DECLARE ReplaceCarriageReturn BLOB X'0d0a';
+		SET request = REPLACE(request, ReplaceCarriageReturn);
+		SET Environment.variables.request = CAST(request AS CHARACTER CCSID 1208);
+		SET Environment.variables.dbStartTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS DBSTARTTIME;');
+		CALL EDI_GetFormatTypeByRefAndMsg(Environment.variables.txnID,MessageName,Environment.Variables.Result[],Environment.Variables.Result56[]);
+	END;
+
+END MODULE;
+
+CREATE COMPUTE MODULE PILOT_Get_HLTDLR_Data_xmlCreation_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+
+		CALL EDI_XGetHLTDLR(Environment.variables.txnID,Environment.Variables.XMLResultHD[],Environment.Variables.XMLResultREC[],Environment.Variables.XMLResultFID[],Environment.Variables.XMLResultIssueDt[]);
+		SET Environment.variables.dbEndTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS DBENDTIME;');
+
+		SET Environment.Flag = 'Y';
+		SET Environment.Format = 'XML';
+		DECLARE i INTEGER 1;
+
+		IF (Environment.Variables.XMLResultHD.ApprovalStatus = 'Submitted') OR (Environment.Variables.XMLResultHD.ApprovalStatus = 'Resubmitted')THEN
+
+			SET OutputRoot.XMLNSC.HealthDeclarationForSailOutRequest.DocumentHeader.DocumentReference.DocumentType = 'HLDREQ';
+			DECLARE headerRef REFERENCE TO OutputRoot.XMLNSC.HealthDeclarationForSailOutRequest.DocumentHeader.DocumentReference;
+			SET headerRef.DocumentName = 'Health Declaration for Sail Out Request';
+			SET headerRef.DocumentNumber = Environment.Variables.XMLResultHD[1].DocumentNumber;
+			SET headerRef.CommonRefNumber = Environment.Variables.XMLResultHD[1].CommonRefNumber;
+			SET headerRef.MessageType = Environment.Variables.XMLResultHD[1].MessageType;
+			SET headerRef.SenderID = Environment.Variables.XMLResultREC[1].ReceivingParty;
+
+			DECLARE recPartyCardinality INTEGER CARDINALITY (Environment.Variables.XMLResultHD[]);
+			DECLARE notPartyCardinality INTEGER CARDINALITY (Environment.Variables.XMLResultFID[]);
+			WHILE (i <= recPartyCardinality) DO
+				SET OutputRoot.XMLNSC.HealthDeclarationForSailOutRequest.DocumentHeader.DocumentExchangeDetails.ReceivingPartyDetails.ReceivingParty[i] = Environment.Variables.XMLResultHD[i].SenderID;
+				SET i = i + 1;
+			END WHILE;
+			SET i = 1;
+			WHILE (i <= notPartyCardinality) DO
+				SET OutputRoot.XMLNSC.HealthDeclarationForSailOutRequest.DocumentHeader.DocumentExchangeDetails.NotifyPartyDetails.NotifyParty[i] = Environment.Variables.XMLResultFID[i].NotifyParty;
+				SET i = i + 1;
+			END WHILE;
+
+			SET OutputRoot.XMLNSC.HealthDeclarationForSailOutRequest.DocumentDetails.HealthDeclarationForSailOutHeaderDetails.RecordType = Environment.Variables.XMLResultHD[1].RecordType;
+			DECLARE docDetailsRef REFERENCE TO OutputRoot.XMLNSC.HealthDeclarationForSailOutRequest.DocumentDetails.HealthDeclarationForSailOutHeaderDetails;
+			
+			SET docDetailsRef.VCN = Environment.Variables.XMLResultHD[1].VCN;
+			
+			IF LENGTH(Environment.Variables.XMLResultHD.IMONumber) <> 0 THEN
+				SET docDetailsRef.IMONumber = Environment.Variables.XMLResultHD[1].IMONumber;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.VoyageNumber) <> 0 THEN
+				SET docDetailsRef.VoyageNumber = Environment.Variables.XMLResultHD[1].VoyageNumber;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.CallSign) <> 0 THEN
+				SET docDetailsRef.CallSign = Environment.Variables.XMLResultHD[1].CallSign;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.VesselName) <> 0 THEN
+				SET docDetailsRef.ShipName = Environment.Variables.XMLResultHD[1].VesselName;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.ShipNationality) <> 0 THEN
+				SET docDetailsRef.ShipNationality = Environment.Variables.XMLResultHD[1].ShipNationality;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.ETA) <> 0 THEN
+				SET docDetailsRef.ExpectedDateTimeOfArrival = Environment.Variables.XMLResultHD[1].ETA;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.ETD) <> 0 THEN
+				SET docDetailsRef.ExpectedDateTimeOfDeparture = Environment.Variables.XMLResultHD[1].ETD;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.Berth) <> 0 THEN
+				SET docDetailsRef.Berth = Environment.Variables.XMLResultHD[1].Berth;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.BerthType) <> 0 THEN
+				SET docDetailsRef.BerthType = Environment.Variables.XMLResultHD[1].BerthType;
+			END IF;
+			
+			SET docDetailsRef.MasterName = Environment.Variables.XMLResultHD[1].MasterName;
+			
+			IF LENGTH(Environment.Variables.XMLResultHD.ShipSurgeonName) <> 0 THEN
+				SET docDetailsRef.ShipSurgeonName = Environment.Variables.XMLResultHD[1].ShipSurgeonName;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.NumberOfPassengerEmbarked) <> 0 THEN
+				SET docDetailsRef.NumberOfPassengerEmbarked = Environment.Variables.XMLResultHD[1].NumberOfPassengerEmbarked;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.NumberOfPassengerDisembarked) <> 0 THEN
+				SET docDetailsRef.NumberOfPassengerDisembarked = Environment.Variables.XMLResultHD[1].NumberOfPassengerDisembarked;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.NumberOfCrewEmbarked) <> 0 THEN
+				SET docDetailsRef.NumberOfCrewEmbarked = Environment.Variables.XMLResultHD[1].NumberOfCrewEmbarked;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.NumberOfCrewDisembarked) <> 0 THEN
+				SET docDetailsRef.NumberOfCrewDisembarked = Environment.Variables.XMLResultHD[1].NumberOfCrewDisembarked;
+			END IF;
+	
+			SET docDetailsRef.NextPortOfCall = Environment.Variables.XMLResultHD[1].NextPortOfCall;
+			SET docDetailsRef.LastPortOfCall = Environment.Variables.XMLResultHD[1].LastPortOfCall;
+			
+			IF LENGTH(Environment.Variables.XMLResultHD.UnusualMortalityOfRats) <> 0 THEN
+				SET docDetailsRef.UnusualMortalityOfRats = Environment.Variables.XMLResultHD[1].UnusualMortalityOfRats;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.UnusualMortalityDetails) <> 0 THEN
+				SET docDetailsRef.UnusualMortalityDetails = Environment.Variables.XMLResultHD[1].UnusualMortalityDetails;
+			END IF;
+					
+			SET docDetailsRef.ShipSanitationCertificateNumber = Environment.Variables.XMLResultHD[1].ShipSanitationCertificateNumber;
+			SET docDetailsRef.ShipSanitaionCertificateplace = Environment.Variables.XMLResultHD[1].ShipSanitaionCertificatePlace;
+		
+			SET docDetailsRef.DateOfIssue = Environment.Variables.XMLResultHD[1].DateOfIssue;
+			
+			IF LENGTH(Environment.Variables.XMLResultHD.ValidatyDate) <> 0 THEN
+				SET docDetailsRef.ValidityDate = Environment.Variables.XMLResultHD[1].ValidatyDate;
+			END IF;
+			
+			SET docDetailsRef.MedicinechestCertificatenumber = Environment.Variables.XMLResultHD[1].MedicineChestCertificateNumber;
+			SET docDetailsRef.MedicineChestCertPlace = Environment.Variables.XMLResultHD[1].MedicineChestCertPlace;
+			SET docDetailsRef.MedicineChestCertDate = Environment.Variables.XMLResultHD[1].MedicineChestCertDate;
+			
+			IF (Environment.Variables.XMLResultHD.WhetherShipProvisionSupplied = 'Y')THEN
+				SET docDetailsRef.WhetherShipProvisionSupplied.ShipChandlersName = Environment.Variables.XMLResultHD[1].ShipChandlersName;
+				SET docDetailsRef.WhetherShipProvisionSupplied.ShipChandlersFSSAILicenceNumber = Environment.Variables.XMLResultHD[1].ShipChandlersFssaiLicenceNo;
+			ELSE
+				SET docDetailsRef.WhetherShipProvisionSupplied = Environment.Variables.XMLResultHD[1].WhetherShipProvisionSupplied;
+			END IF;
+			
+			IF (Environment.Variables.XMLResultHD.WhetherShipWasSuppliedWithWater = 'Y')THEN
+				SET docDetailsRef.WhetherShipWasSuppliedWithWater.PotableWater = Environment.Variables.XMLResultHD[1].PotableWater;
+				SET docDetailsRef.WhetherShipWasSuppliedWithWater.NonPotableWater = Environment.Variables.XMLResultHD[1].NonPotableWater;
+				SET docDetailsRef.WhetherShipWasSuppliedWithWater.TypeOfSupply = Environment.Variables.XMLResultHD[1].TypeOfSupply;
+				SET docDetailsRef.WhetherShipWasSuppliedWithWater.SupplierName = Environment.Variables.XMLResultHD[1].SupplierName;
+				SET docDetailsRef.WhetherShipWasSuppliedWithWater.QuantityMTs = Environment.Variables.XMLResultHD[1].Quantity;
+			ELSE 
+				SET docDetailsRef.WhetherShipWasSuppliedWithWater = Environment.Variables.XMLResultHD[1].WhetherShipWasSuppliedWithWater;
+			END IF;
+			
+			
+			IF (Environment.Variables.XMLResultHD.GarbageCollected = 'Y')THEN
+				SET docDetailsRef.GarbageCollected.GarbageCollectorName = Environment.Variables.XMLResultHD[1].GarbageCollectorName;
+			ELSE
+				SET docDetailsRef.GarbageCollected = Environment.Variables.XMLResultHD[1].GarbageCollected;
+			END IF;
+				
+			
+			IF (Environment.Variables.XMLResultHD.SludgeDischarge = 'Y')THEN
+				SET docDetailsRef.SludgeDischarge.SludgeDischargeDetails = Environment.Variables.XMLResultHD[1].SludgeDischargeDetails;
+			ELSE
+				SET docDetailsRef.SludgeDischarge = Environment.Variables.XMLResultHD[1].SludgeDischarge;
+			END IF;
+						
+			IF (Environment.Variables.XMLResultHD.SewageDischarge = 'Y')THEN
+				SET docDetailsRef.SewageDischarge.SewageDischargeDetails = Environment.Variables.XMLResultHD[1].SewageDischargeDetails;
+			ELSE
+				SET docDetailsRef.SewageDischarge = Environment.Variables.XMLResultHD[1].SewageDischarge;
+			END IF;
+			
+			IF (Environment.Variables.XMLResultHD.AnySicknessOfCrewDuringTheStayAtPort = 'Y')THEN
+				SET docDetailsRef.AnySickCrewDuringTheStayAtPort.NatureOfSickness = Environment.Variables.XMLResultHD[1].NatureOfSickness;
+			ELSE
+				SET docDetailsRef.AnySickCrewDuringTheStayAtPort = Environment.Variables.XMLResultHD[1].AnySicknessOfCrewDuringTheStayAtPort;
+			END IF;
+					
+			IF (Environment.Variables.XMLResultHD.AnyCrewSignedOffOrHospitalizedAtPort = 'Y')THEN
+				SET docDetailsRef.AnyCrewSignedOffAndHospitalizedAtPort.MedicalOfficerName = Environment.Variables.XMLResultHD[1].MedicalOfficerName;
+				SET docDetailsRef.AnyCrewSignedOffAndHospitalizedAtPort.HospitalName = Environment.Variables.XMLResultHD[1].HospitalName;
+				SET docDetailsRef.AnyCrewSignedOffAndHospitalizedAtPort.MedicalOfficerContactNo = Environment.Variables.XMLResultHD[1].MedicalOfficerMob;
+				SET docDetailsRef.AnyCrewSignedOffAndHospitalizedAtPort.EmailID = Environment.Variables.XMLResultHD[1].EmailID;
+			ELSE
+				SET docDetailsRef.AnyCrewSignedOffAndHospitalizedAtPort = Environment.Variables.XMLResultHD[1].AnyCrewSignedOffOrHospitalizedAtPort;
+			END IF;
+			
+			IF LENGTH(Environment.Variables.XMLResultHD.FreePratiquePermissionGranted) <> 0 THEN
+				SET docDetailsRef.FreePratiquePermission = Environment.Variables.XMLResultHD[1].FreePratiquePermissionGranted;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.RadioFreePratiquePermissionGranted) <> 0 THEN
+				SET docDetailsRef.RadioFreePratique = Environment.Variables.XMLResultHD[1].RadioFreePratiquePermissionGranted;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.LimitedfreePratique) <> 0 THEN
+				SET docDetailsRef.LimitedfreePratique = Environment.Variables.XMLResultHD[1].LimitedfreePratique;
+			END IF;
+			
+			SET OutputRoot.XMLNSC.HealthDeclarationForSailOutRequest.DocumentSummary.IssuedDateTime = Environment.Variables.XMLResultIssueDt[1].IssuedDateTime;
+
+		ELSE
+			SET OutputRoot.XMLNSC.HealthDeclarationForSailOut.DocumentHeader.DocumentReference.DocumentType = Environment.Variables.XMLResultHD[1].DocumentType;
+			DECLARE headerRef REFERENCE TO OutputRoot.XMLNSC.HealthDeclarationForSailOut.DocumentHeader.DocumentReference;
+			SET headerRef.DocumentName = Environment.Variables.XMLResultHD[1].DocumentName;
+			SET headerRef.DocumentNumber = Environment.Variables.XMLResultHD[1].DocumentNumber;
+			SET headerRef.CommonRefNumber = Environment.Variables.XMLResultHD[1].CommonRefNumber;
+			SET headerRef.MessageType = Environment.Variables.XMLResultHD[1].MessageType;
+			SET headerRef.SenderID = Environment.Variables.XMLResultREC[1].ReceivingParty;
+
+			DECLARE recPartyCardinality INTEGER CARDINALITY (Environment.Variables.XMLResultHD[]);
+			DECLARE notPartyCardinality INTEGER CARDINALITY (Environment.Variables.XMLResultFID[]);
+			WHILE (i <= recPartyCardinality) DO
+				SET OutputRoot.XMLNSC.HealthDeclarationForSailOut.DocumentHeader.DocumentExchangeDetails.ReceivingPartyDetails.ReceivingParty[i] = Environment.Variables.XMLResultHD[i].SenderID;
+				SET i = i + 1;
+			END WHILE;
+			SET i = 1;
+			WHILE (i <= notPartyCardinality) DO
+				SET OutputRoot.XMLNSC.HealthDeclarationForSailOut.DocumentHeader.DocumentExchangeDetails.NotifyPartyDetails.NotifyParty[i] = Environment.Variables.XMLResultFID[i].NotifyParty;
+				SET i = i + 1;
+			END WHILE;
+
+			SET OutputRoot.XMLNSC.HealthDeclarationForSailOut.DocumentDetails.HealthDeclarationForSailOutHeaderDetails.RecordType = Environment.Variables.XMLResultHD[1].RecordType;
+			DECLARE docDetailsRef REFERENCE TO OutputRoot.XMLNSC.HealthDeclarationForSailOut.DocumentDetails.HealthDeclarationForSailOutHeaderDetails;
+			SET docDetailsRef.VCN = Environment.Variables.XMLResultHD[1].VCN;
+			
+			IF LENGTH(Environment.Variables.XMLResultHD.IMONumber) <> 0 THEN
+				SET docDetailsRef.IMONumber = Environment.Variables.XMLResultHD[1].IMONumber;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.VoyageNumber) <> 0 THEN
+				SET docDetailsRef.VoyageNumber = Environment.Variables.XMLResultHD[1].VoyageNumber;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.CallSign) <> 0 THEN
+				SET docDetailsRef.CallSign = Environment.Variables.XMLResultHD[1].CallSign;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.VesselName) <> 0 THEN
+				SET docDetailsRef.ShipName = Environment.Variables.XMLResultHD[1].VesselName;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.ShipNationality) <> 0 THEN
+				SET docDetailsRef.ShipNationality = Environment.Variables.XMLResultHD[1].ShipNationality;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.ETA) <> 0 THEN
+				SET docDetailsRef.ExpectedDateTimeOfArrival = Environment.Variables.XMLResultHD[1].ETA;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.ETD) <> 0 THEN
+				SET docDetailsRef.ExpectedDateTimeOfDeparture = Environment.Variables.XMLResultHD[1].ETD;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.Berth) <> 0 THEN
+				SET docDetailsRef.Berth = Environment.Variables.XMLResultHD[1].Berth;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.BerthType) <> 0 THEN
+				SET docDetailsRef.BerthType = Environment.Variables.XMLResultHD[1].BerthType;
+			END IF;
+			
+			SET docDetailsRef.MasterName = Environment.Variables.XMLResultHD[1].MasterName;
+			
+			IF LENGTH(Environment.Variables.XMLResultHD.ShipSurgeonName) <> 0 THEN
+				SET docDetailsRef.ShipSurgeonName = Environment.Variables.XMLResultHD[1].ShipSurgeonName;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.NumberOfPassengerEmbarked) <> 0 THEN
+				SET docDetailsRef.NumberOfPassengerEmbarked = Environment.Variables.XMLResultHD[1].NumberOfPassengerEmbarked;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.NumberOfPassengerDisembarked) <> 0 THEN
+				SET docDetailsRef.NumberOfPassengerDisembarked = Environment.Variables.XMLResultHD[1].NumberOfPassengerDisembarked;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.NumberOfCrewEmbarked) <> 0 THEN
+				SET docDetailsRef.NumberOfCrewEmbarked = Environment.Variables.XMLResultHD[1].NumberOfCrewEmbarked;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.NumberOfCrewDisembarked) <> 0 THEN
+				SET docDetailsRef.NumberOfCrewDisembarked = Environment.Variables.XMLResultHD[1].NumberOfCrewDisembarked;
+			END IF;
+	
+			SET docDetailsRef.NextPortOfCall = Environment.Variables.XMLResultHD[1].NextPortOfCall;
+			SET docDetailsRef.LastPortOfCall = Environment.Variables.XMLResultHD[1].LastPortOfCall;
+			
+			IF LENGTH(Environment.Variables.XMLResultHD.UnusualMortalityOfRats) <> 0 THEN
+				SET docDetailsRef.UnusualMortalityOfRats = Environment.Variables.XMLResultHD[1].UnusualMortalityOfRats;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.UnusualMortalityDetails) <> 0 THEN
+				SET docDetailsRef.UnusualMortalityDetails = Environment.Variables.XMLResultHD[1].UnusualMortalityDetails;
+			END IF;
+					
+			SET docDetailsRef.ShipSanitationCertificateNumber = Environment.Variables.XMLResultHD[1].ShipSanitationCertificateNumber;
+			SET docDetailsRef.ShipSanitaionCertificateplace = Environment.Variables.XMLResultHD[1].ShipSanitaionCertificatePlace;
+		
+			SET docDetailsRef.DateOfIssue = Environment.Variables.XMLResultHD[1].DateOfIssue;
+			
+			IF LENGTH(Environment.Variables.XMLResultHD.ValidatyDate) <> 0 THEN
+				SET docDetailsRef.ValidityDate = Environment.Variables.XMLResultHD[1].ValidatyDate;
+			END IF;
+			
+			SET docDetailsRef.MedicinechestCertificatenumber = Environment.Variables.XMLResultHD[1].MedicineChestCertificateNumber;
+			SET docDetailsRef.MedicineChestCertPlace = Environment.Variables.XMLResultHD[1].MedicineChestCertPlace;
+			SET docDetailsRef.MedicineChestCertDate = Environment.Variables.XMLResultHD[1].MedicineChestCertDate;
+			
+			IF (Environment.Variables.XMLResultHD.WhetherShipProvisionSupplied = 'Y')THEN
+				SET docDetailsRef.WhetherShipProvisionSupplied.ShipChandlersName = Environment.Variables.XMLResultHD[1].ShipChandlersName;
+				SET docDetailsRef.WhetherShipProvisionSupplied.ShipChandlersFSSAILicenceNumber = Environment.Variables.XMLResultHD[1].ShipChandlersFssaiLicenceNo;
+			ELSE
+				SET docDetailsRef.WhetherShipProvisionSupplied = Environment.Variables.XMLResultHD[1].WhetherShipProvisionSupplied;
+			END IF;
+			
+			IF (Environment.Variables.XMLResultHD.WhetherShipWasSuppliedWithWater = 'Y')THEN
+				SET docDetailsRef.WhetherShipWasSuppliedWithWater.PotableWater = Environment.Variables.XMLResultHD[1].PotableWater;
+				SET docDetailsRef.WhetherShipWasSuppliedWithWater.NonPotableWater = Environment.Variables.XMLResultHD[1].NonPotableWater;
+				SET docDetailsRef.WhetherShipWasSuppliedWithWater.TypeOfSupply = Environment.Variables.XMLResultHD[1].TypeOfSupply;
+				SET docDetailsRef.WhetherShipWasSuppliedWithWater.SupplierName = Environment.Variables.XMLResultHD[1].SupplierName;
+				SET docDetailsRef.WhetherShipWasSuppliedWithWater.QuantityMTs = Environment.Variables.XMLResultHD[1].Quantity;
+			ELSE 
+				SET docDetailsRef.WhetherShipWasSuppliedWithWater = Environment.Variables.XMLResultHD[1].WhetherShipWasSuppliedWithWater;
+			END IF;
+			
+			
+			IF (Environment.Variables.XMLResultHD.GarbageCollected = 'Y')THEN
+				SET docDetailsRef.GarbageCollected.GarbageCollectorName = Environment.Variables.XMLResultHD[1].GarbageCollectorName;
+			ELSE
+				SET docDetailsRef.GarbageCollected = Environment.Variables.XMLResultHD[1].GarbageCollected;
+			END IF;
+				
+			
+			IF (Environment.Variables.XMLResultHD.SludgeDischarge = 'Y')THEN
+				SET docDetailsRef.SludgeDischarge.SludgeDischargeDetails = Environment.Variables.XMLResultHD[1].SludgeDischargeDetails;
+			ELSE
+				SET docDetailsRef.SludgeDischarge = Environment.Variables.XMLResultHD[1].SludgeDischarge;
+			END IF;
+						
+			IF (Environment.Variables.XMLResultHD.SewageDischarge = 'Y')THEN
+				SET docDetailsRef.SewageDischarge.SewageDischargeDetails = Environment.Variables.XMLResultHD[1].SewageDischargeDetails;
+			ELSE
+				SET docDetailsRef.SewageDischarge = Environment.Variables.XMLResultHD[1].SewageDischarge;
+			END IF;
+			
+			IF (Environment.Variables.XMLResultHD.AnySicknessOfCrewDuringTheStayAtPort = 'Y')THEN
+				SET docDetailsRef.AnySickCrewDuringTheStayAtPort.NatureOfSickness = Environment.Variables.XMLResultHD[1].NatureOfSickness;
+			ELSE
+				SET docDetailsRef.AnySickCrewDuringTheStayAtPort = Environment.Variables.XMLResultHD[1].AnySicknessOfCrewDuringTheStayAtPort;
+			END IF;
+					
+			IF (Environment.Variables.XMLResultHD.AnyCrewSignedOffOrHospitalizedAtPort = 'Y')THEN
+				SET docDetailsRef.AnyCrewSignedOffAndHospitalizedAtPort.MedicalOfficerName = Environment.Variables.XMLResultHD[1].MedicalOfficerName;
+				SET docDetailsRef.AnyCrewSignedOffAndHospitalizedAtPort.HospitalName = Environment.Variables.XMLResultHD[1].HospitalName;
+				SET docDetailsRef.AnyCrewSignedOffAndHospitalizedAtPort.MedicalOfficerContactNo = Environment.Variables.XMLResultHD[1].MedicalOfficerMob;
+				SET docDetailsRef.AnyCrewSignedOffAndHospitalizedAtPort.EmailID = Environment.Variables.XMLResultHD[1].EmailID;
+			ELSE
+				SET docDetailsRef.AnyCrewSignedOffAndHospitalizedAtPort = Environment.Variables.XMLResultHD[1].AnyCrewSignedOffOrHospitalizedAtPort;
+			END IF;
+			
+			IF LENGTH(Environment.Variables.XMLResultHD.FreePratiquePermissionGranted) <> 0 THEN
+				SET docDetailsRef.FreePratiquePermission = Environment.Variables.XMLResultHD[1].FreePratiquePermissionGranted;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.RadioFreePratiquePermissionGranted) <> 0 THEN
+				SET docDetailsRef.RadioFreePratique = Environment.Variables.XMLResultHD[1].RadioFreePratiquePermissionGranted;
+			END IF;
+			IF LENGTH(Environment.Variables.XMLResultHD.LimitedfreePratique) <> 0 THEN
+				SET docDetailsRef.LimitedfreePratique = Environment.Variables.XMLResultHD[1].LimitedfreePratique;
+			END IF;
+			
+			SET docDetailsRef.Status = Environment.Variables.XMLResultHD[1].ApprovalStatus;
+			
+			IF LENGTH(Environment.Variables.XMLResultHD[1].ReasonForRejection) <> 0 THEN
+				SET docDetailsRef.ReasonForRejection = Environment.Variables.XMLResultHD[1].ReasonForRejection;
+			END IF;
+			
+			IF LENGTH(Environment.Variables.XMLResultHD[1].RejectionDateTime) <> 0 THEN
+				SET docDetailsRef.RejectionDateTime = Environment.Variables.XMLResultHD[1].RejectionDateTime;
+			END IF;
+			
+			IF LENGTH(Environment.Variables.XMLResultHD[1].ReasonForApproval) <> 0 THEN
+				SET docDetailsRef.ReasonForApproval = Environment.Variables.XMLResultHD[1].ReasonForApproval;
+			END IF;
+			
+			IF LENGTH(Environment.Variables.XMLResultHD[1].ApprovedDateTime) <> 0 THEN
+				SET docDetailsRef.ApprovedDateTime = Environment.Variables.XMLResultHD[1].ApprovedDateTime;
+			END IF;
+			
+			
+			SET OutputRoot.XMLNSC.HealthDeclarationForSailOut.DocumentSummary.IssuedDateTime = Environment.Variables.XMLResultIssueDt[1].IssuedDateTime;
+
+			-- SET OutputRoot.XMLNSC.HealthDeclarationForSailOutRequest.DocumentSummary.IssuedDateTime = Environment.Variables.XMLResultIssueDt[1].IssuedDateTime;
+			-- SET docDetailsRef.NoOfPassengerThro = Environment.Variables.XMLResultHD[1].NoOfPassengerThro;
+			-- SET docDetailsRef.NoOfPassengeNew = Environment.Variables.XMLResultHD[1].NoOfPassengeNew;
+			-- SET docDetailsRef.NoOfCrewThro = Environment.Variables.XMLResultHD[1].NoOfCrewThro;
+			-- SET docDetailsRef.NoOfCrewNew = Environment.Variables.XMLResultHD[1].NoOfCrewNew;
+			-- SET docDetailsRef.SSCC = Environment.Variables.XMLResultHD[1].SSCC;
+			-- SET docDetailsRef.DateOfIssue = Environment.Variables.XMLResultHD[1].DateOfIssue;
+			-- SET docDetailsRef.UnusualMortalityOfRats = Environment.Variables.XMLResultHD[1].UnusualMortalityOfRats;
+			-- SET docDetailsRef.UnusualMortalityDetails = Environment.Variables.XMLResultHD[1].UnusualMortalityDetails;
+			-- SET docDetailsRef.ICPCertificateIssued = Environment.Variables.XMLResultHD[1].ICPCertificateIssued;
+			-- SET docDetailsRef.ICPCertificateNo = Environment.Variables.XMLResultHD[1].ICPCertificateNo;
+			-- SET docDetailsRef.ICPCertificateIssueDate = Environment.Variables.XMLResultHD[1].ICPCertificateIssueDate;
+			-- SET docDetailsRef.ICPCertificateValidUpto = Environment.Variables.XMLResultHD[1].ICPCertificateValidUpto;
+			-- SET docDetailsRef.MedicineChestCertNo = Environment.Variables.XMLResultHD[1].MedicineChestCertNo;
+			-- SET docDetailsRef.MedicineChestCertDate = Environment.Variables.XMLResultHD[1].MedicineChestCertDate;
+			-- SET docDetailsRef.AnySicknessOfCrewDuringTheStayAtPort = Environment.Variables.XMLResultHD[1].AnySicknessOfCrewDuringTheStayAtPort;
+			-- SET docDetailsRef.AnyCrewSignedOffOrHospitalizedAtPort = Environment.Variables.XMLResultHD[1].AnyCrewSignedOffOrHospitalizedAtPort;
+			-- SET docDetailsRef.NatureOfSickness = Environment.Variables.XMLResultHD[1].NatureOfSickness;
+			-- SET docDetailsRef.MedicalOfficerName = Environment.Variables.XMLResultHD[1].MedicalOfficerName;
+
+		END IF;
+
+	END;
+END MODULE;
+
+
+CREATE PROCEDURE EDI_GetFormatTypeByRefAndMsg( IN TransactionID CHARACTER,IN MessageName CHARACTER)
+LANGUAGE DATABASE
+DYNAMIC RESULT SETS 2
+EXTERNAL NAME "dbo.EDI_GetFormatTypeByRefAndMsg";
+
+CREATE PROCEDURE EDI_XGetHLTDLR( IN TransactionID CHARACTER)
+LANGUAGE DATABASE
+DYNAMIC RESULT SETS 4
+EXTERNAL NAME "dbo.EDI_XGetHLTDLR";
+
+CREATE PROCEDURE EDI_TGetHLTDLR( IN TransactionID CHARACTER)
+LANGUAGE DATABASE
+DYNAMIC RESULT SETS 5
+EXTERNAL NAME "dbo.EDI_TGetHLTDLR";
+
+CREATE COMPUTE MODULE PILOT_Get_HLTDLR_Data_FileCreation_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		IF (EXISTS(InputRoot.XMLNSC[])) THEN
+			DECLARE outputBlob BLOB ASBITSTREAM(InputRoot.XMLNSC, 549,1208);
+			DECLARE ReplaceCarriageReturn BLOB X'0d0a';
+			SET outputBlob = REPLACE(outputBlob, ReplaceCarriageReturn);
+			SET Environment.Variables.charData = CAST(outputBlob AS CHARACTER CCSID 1208);
+			SET OutputRoot.XMLNSC = xmlBeautify(Environment.Variables.charData);
+			SET OutputRoot.XMLNSC.root = SUBSTRING(OutputRoot.XMLNSC AFTER '?>');
+			DECLARE stringOut BLOB;
+			SET stringOut = CAST(OutputRoot.XMLNSC.root as BLOB CCSID 1208);
+			IF (STARTSWITH(Environment.Variables.XMLResultREC[1].SFTP_PATH, 'http')) THEN
+				DECLARE jreq CHARACTER Environment.Variables.charData;
+				CREATE FIELD OutputRoot.JSON.Data.ReqHeader;
+				SET OutputRoot.JSON.Data.ReqHeader.Channel_ID = 'IndianPCS';
+				SET OutputRoot.JSON.Data.ReqHeader.Service_ID = '7057';
+				SET OutputRoot.JSON.Data.ReqHeader.Request_ID = Environment.variables.txnID;
+				SET Environment.reqDate = PASSTHRU('SELECT CURRENT_TIMESTAMP AS WebReq');
+				SET OutputRoot.JSON.Data.ReqHeader.Request_Date = CAST(Environment.reqDate[1].WebReq AS CHARACTER);
+				SET OutputRoot.JSON.Data.ReqHeader.Request_Date = REPLACE(OutputRoot.JSON.Data.ReqHeader.Request_Date,'TIMESTAMP ','');
+				SET OutputRoot.JSON.Data.ReqHeader.Request_Date = SUBSTRING(OutputRoot.JSON.Data.ReqHeader.Request_Date FROM 2 FOR 10);
+				SET OutputRoot.JSON.Data.ReqHeader.Request_Date = REPLACE(OutputRoot.JSON.Data.ReqHeader.Request_Date,'-','');
+				SET OutputRoot.JSON.Data.ReqBody.XML = jreq;
+				SET OutputLocalEnvironment.Destination.HTTP.RequestURL = Environment.Variables.XMLResultREC[1].SFTP_PATH;
+				SET Environment.variables.APIPort = Environment.Variables.XMLResultHD[1].PortCode;
+				SET Environment.variables.APICall = TRUE;
+				SET Environment.variables.AuditSeq = PASSTHRU('SELECT NEXT VALUE FOR IPAOWNER.TPCS_AUDIT_API_SEQ AS SEQ;');
+				INSERT INTO Database.PCSIBM.TIBM_LOG_AUDIT_API(API_Request_ID,API_Channel_ID,API_Request_Date,SITE_ID,MS_REF_NO,MSG_TYPE,MSG_DIRECTION,API_URL,API_TIMESTAMP,TRM_STATUS,PAYLOAD_OUT,AUDITSEQ)
+				VALUES(Environment.variables.txnID,'IndianPCS',CURRENT_TIMESTAMP,Environment.variables.APIPort,Environment.variables.txnID,'HLTDLR','OUTBOUND',Environment.Variables.XMLResultREC[1].SFTP_PATH,CURRENT_TIMESTAMP,'0',jreq,Environment.variables.AuditSeq[1].SEQ);
+				COMMIT;
+				PROPAGATE TO TERMINAL 'out1';
+				RETURN FALSE;
+			END IF;
+			SET OutputRoot.BLOB.BLOB = stringOut;
+			IF (Environment.Variables.XMLResultHD.ApprovalStatus = 'Submitted') OR (Environment.Variables.XMLResultHD.ApprovalStatus = 'Resubmitted')THEN
+				SET OutputLocalEnvironment.Destination.File.Name = 'HLDREQ' || Environment.variables.txnID || '.xml';
+			ELSE
+				SET OutputLocalEnvironment.Destination.File.Name = 'HLTDLR' || Environment.variables.txnID || '.xml';
+			END IF;
+			SET OutputLocalEnvironment.Destination.File.Remote.ServerDirectory = Environment.Variables.XMLResultREC[1].SFTP_PATH;
+
+			SET Environment.variables.fileName = OutputLocalEnvironment.Destination.File.Name;
+			SET Environment.variables.fileDirectory = OutputLocalEnvironment.Destination.File.Remote.ServerDirectory;
+			PROPAGATE TO TERMINAL 'out';
+			RETURN FALSE;
+		ELSEIF (EXISTS(InputRoot.DFDL[])) THEN
+			SET OutputRoot = InputRoot;
+			SET OutputRoot.Properties.MessageType ='{}:HLTDLR';
+			SET OutputRoot.Properties.MessageSet ='{JMB_DFDL}';
+			IF (Environment.Variables.TXTResult1.ApprovalStatus = 'Submitted') OR (Environment.Variables.TXTResult1.ApprovalStatus = 'Resubmitted')THEN
+				SET OutputLocalEnvironment.Destination.File.Name = 'HLDREQ' || Environment.variables.txnID || '.txt';
+			ELSE
+				SET OutputLocalEnvironment.Destination.File.Name = 'HLTDLR' || Environment.variables.txnID || '.txt';
+			END IF;
+			SET OutputLocalEnvironment.Destination.File.Remote.ServerDirectory = Environment.Variables.TXTResult2[1].SFTP_PATH;
+
+			SET Environment.variables.fileName = OutputLocalEnvironment.Destination.File.Name;
+			SET Environment.variables.fileDirectory = OutputLocalEnvironment.Destination.File.Remote.ServerDirectory;
+
+			PROPAGATE TO TERMINAL 'out';
+			RETURN FALSE;
+		END IF;
+
+		SET Environment.variables.fileName = OutputLocalEnvironment.Destination.File.Name;
+		SET Environment.variables.fileDirectory = OutputLocalEnvironment.Destination.File.Remote.ServerDirectory;
+	
+
+SET Environment.variables.fileName = OutputLocalEnvironment.Destination.File.Name;
+SET Environment.variables.fileDirectory = OutputLocalEnvironment.Destination.File.Remote.ServerDirectory;
+END;
+CREATE PROCEDURE xmlBeautify( IN unformattedXML CHARACTER)
+RETURNS CHARACTER
+LANGUAGE JAVA
+EXTERNAL NAME "com.portall.xmlBeautify.XmlBeautifier.prettyFormat";
+END MODULE;
+
+CREATE COMPUTE MODULE PILOT_Get_HLTDLR_Data_failureResponse_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE errorCode CHARACTER;
+		DECLARE errorText CHARACTER;
+		IF (EXISTS(InputExceptionList.RecoverableException.RecoverableException.RecoverableException.RecoverableException.ParserException.ParserException[])) THEN
+			SET errorCode = InputExceptionList.RecoverableException.RecoverableException.RecoverableException.RecoverableException.ParserException.ParserException.Number;
+			SET errorText = InputExceptionList.RecoverableException.RecoverableException.RecoverableException.RecoverableException.ParserException.ParserException.Text;
+		ELSEIF (EXISTS(InputExceptionList.RecoverableException.DatabaseException.DatabaseException.DatabaseException[])) THEN
+			SET errorCode = InputExceptionList.RecoverableException.DatabaseException.DatabaseException.DatabaseException.Number;
+			SET errorText = InputExceptionList.RecoverableException.DatabaseException.DatabaseException.DatabaseException.Insert[3].Text;
+		ELSEIF (Environment.variables.noResultbyProcedure = TRUE) THEN
+			SET errorCode = 'ERR01';
+			SET errorText = 'No resultset obtained from EDI_GetFormatTypeByRefAndMsg procedure';
+		ELSEIF (EXISTS(InputExceptionList.RecoverableException.RecoverableException.RecoverableException[])) THEN
+			SET errorCode = InputExceptionList.RecoverableException.RecoverableException.RecoverableException.Number;
+			SET errorText = InputExceptionList.RecoverableException.RecoverableException.RecoverableException.Text;
+		ELSE
+			SET errorCode = 'ERR01';
+			SET errorText = 'ESB exception occurred';
+		END IF;
+
+		DECLARE currTime CHARACTER CURRENT_TIMESTAMP;
+		SET currTime = REPLACE(currTime,'TIMESTAMP ','');
+		SET currTime = SUBSTRING(currTime BEFORE '.');
+		SET currTime = SUBSTRING(currTime FROM 2);
+		SET OutputRoot.XMLNSC.MQI_ERRORS.UserExceptionTree.Executiongroup = ExecutionGroupLabel;
+		DECLARE userExcepRef REFERENCE TO OutputRoot.XMLNSC.MQI_ERRORS.UserExceptionTree;
+		SET userExcepRef.Brokername = BrokerName;
+		SET userExcepRef.FlowName = MessageFlowLabel;
+		SET userExcepRef.ErrorCode = errorCode;
+		SET userExcepRef.ErrorText = errorText;
+
+
+		SET OutputRoot.XMLNSC.MQI_ERRORS.TIMESTAMP = currTime;
+
+		SET OutputRoot.XMLNSC.MQI_ERRORS.MsgBody = Environment.variables.request;
+
+		SET OutputRoot.XMLNSC.MQI_ERRORS.ExceptionList = InputExceptionList;
+
+		DECLARE outputBlob BLOB ASBITSTREAM(OutputRoot.XMLNSC, 549,1208);
+		DECLARE outputChar CHARACTER CAST(outputBlob AS CHARACTER CCSID 1208);
+		CALL EDI_InsIIBError(outputChar);
+		COMMIT;
+
+		RETURN TRUE;
+	END;
+	CREATE PROCEDURE EDI_InsIIBError( IN errorXML CHARACTER)
+	LANGUAGE DATABASE
+	DYNAMIC RESULT SETS 0
+	EXTERNAL NAME "dbo.EDI_InsIIBError";
+END MODULE;
+
+CREATE COMPUTE MODULE PILOT_Get_HLTDLR_Data_textCreation_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL EDI_TGetHLTDLR(Environment.variables.txnID,Environment.Variables.TXTResult1[],Environment.Variables.TXTResult2[],Environment.Variables.TXTResult3[],Environment.Variables.TXTResult4[],Environment.Variables.TXTResult5[]);
+		SET Environment.variables.dbEndTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS DBENDTIME;');
+		SET OutputRoot.Properties.CodedCharSetId = 1208;
+		SET Environment.Flag = 'Y';
+		SET Environment.Format = 'TXT';
+		--IF (Environment.Variables.TXTResult1.ApprovalStatus = 'Approved')THEN
+		IF (Environment.Variables.TXTResult1.ApprovalStatus = 'Submitted') OR (Environment.Variables.TXTResult1.ApprovalStatus = 'Resubmitted')THEN
+			SET OutputRoot.Properties.MessageType ='{}:HLTDLR';
+			SET OutputRoot.Properties.MessageSet ='{JMB_DFDL}';
+			SET OutputRoot.Properties.ReplyProtocol = 'FILE';
+			--UNH
+			SET OutputRoot.DFDL.HLTDLR.UNH.DocumentType = 'HLTREQ';
+			SET OutputRoot.DFDL.HLTDLR.UNH.DocumentName = 'Health Declaration for Sail Out Request';
+			SET OutputRoot.DFDL.HLTDLR.UNH.DocumentNumber = Environment.Variables.TXTResult1[1].DocumentNumber;
+			SET OutputRoot.DFDL.HLTDLR.UNH.CommonRefNumber = Environment.Variables.TXTResult1[1].CommonRefNumber;
+			SET OutputRoot.DFDL.HLTDLR.UNH.MessageType = Environment.Variables.TXTResult1[1].MessageType;
+			SET OutputRoot.DFDL.HLTDLR.UNH.SenderID = Environment.Variables.TXTResult2[1].ReceivingParty;
+			--RPD
+			DECLARE countRecord INTEGER 0;
+			DECLARE i INTEGER 1;
+
+			SET countRecord = CARDINALITY(Environment.Variables.TXTResult1[]);
+
+			WHILE countRecord > 0 DO
+				SET OutputRoot.DFDL.HLTDLR.RPD.RecipientsID[i] = Environment.Variables.TXTResult1[i].SenderID ;
+				SET i = i + 1;
+				SET countRecord = countRecord - 1;
+			END WHILE;
+			--for NPD
+			DECLARE countRecord1 INTEGER 0;
+			DECLARE j INTEGER 1;
+
+			SET countRecord1 = CARDINALITY(Environment.Variables.TXTResult3[]);
+
+			WHILE countRecord1 > 0 DO
+				SET OutputRoot.DFDL.HLTDLR.NPD.NotifyPartyIDs[j] = Environment.Variables.TXTResult3[j].ReceivingParty ;
+				SET j = j + 1;
+				SET countRecord1 = countRecord1 - 1;
+			END WHILE;
+			--HDD
+
+			SET OutputRoot.DFDL.HLTDLR.HDD.RecordType = Environment.Variables.TXTResult4[1].RecordType;
+			SET OutputRoot.DFDL.HLTDLR.HDD.VCN = Environment.Variables.TXTResult1[1].VCN;
+			SET OutputRoot.DFDL.HLTDLR.HDD.IMONumber = Environment.Variables.TXTResult1[1].IMONumber;
+			SET OutputRoot.DFDL.HLTDLR.HDD.VoyageNumber = Environment.Variables.TXTResult1[1].VoyageNumber;
+			SET OutputRoot.DFDL.HLTDLR.HDD.CallSign = Environment.Variables.TXTResult1[1].CallSign;
+			SET OutputRoot.DFDL.HLTDLR.HDD.ShipName = Environment.Variables.TXTResult1[1].VesselName;
+			SET OutputRoot.DFDL.HLTDLR.HDD.ShipNationality = Environment.Variables.TXTResult1[1].ShipNationality;
+			SET OutputRoot.DFDL.HLTDLR.HDD.ExpectedDateTimeOfArrival = Environment.Variables.TXTResult1[1].ETA;
+			SET OutputRoot.DFDL.HLTDLR.HDD.ExpectedDateTimeOfDeparture = Environment.Variables.TXTResult1[1].ETD;
+			SET OutputRoot.DFDL.HLTDLR.HDD.Berth = Environment.Variables.TXTResult1[1].Berth;
+			SET OutputRoot.DFDL.HLTDLR.HDD.BerthType = Environment.Variables.TXTResult1[1].BerthType;
+			SET OutputRoot.DFDL.HLTDLR.HDD.MasterName = Environment.Variables.TXTResult1[1].MasterName;
+			SET OutputRoot.DFDL.HLTDLR.HDD.ShipSurgeonName = Environment.Variables.TXTResult1[1].ShipSurgeonName;
+			SET OutputRoot.DFDL.HLTDLR.HDD.NumberOfPassengerEmbarked = Environment.Variables.TXTResult1[1].NumberOfPassengerEmbarked;
+			SET OutputRoot.DFDL.HLTDLR.HDD.NumberOfPassengerDisembarked = Environment.Variables.TXTResult1[1].NumberOfPassengerDisembarked;
+			SET OutputRoot.DFDL.HLTDLR.HDD.NumberOfCrewEmbarked = Environment.Variables.TXTResult1[1].NumberOfCrewEmbarked;
+			SET OutputRoot.DFDL.HLTDLR.HDD.NumberOfCrewDisembarked = Environment.Variables.TXTResult1[1].NumberOfCrewDisembarked;
+			SET OutputRoot.DFDL.HLTDLR.HDD.NextPortOfCall = Environment.Variables.TXTResult1[1].NextPortOfCall;
+			SET OutputRoot.DFDL.HLTDLR.HDD.LastPortOfCall = Environment.Variables.TXTResult1[1].LastPortOfCall;
+			SET OutputRoot.DFDL.HLTDLR.HDD.UnusualMortalityOfRats = Environment.Variables.TXTResult1[1].UnusualMortalityOfRats;
+			SET OutputRoot.DFDL.HLTDLR.HDD.UnusualMortalityDetails = Environment.Variables.TXTResult1[1].UnusualMortalityDetails;
+			SET OutputRoot.DFDL.HLTDLR.HDD.ShipSanitationCertificateNumber = Environment.Variables.TXTResult1[1].ShipSanitationCertificateNumber;
+			SET OutputRoot.DFDL.HLTDLR.HDD.ShipSanitaionCertificateplace = Environment.Variables.TXTResult1[1].ShipSanitaionCertificatePlace;
+			SET OutputRoot.DFDL.HLTDLR.HDD.DateOfIssue = Environment.Variables.TXTResult1[1].DateOfIssue;
+			SET OutputRoot.DFDL.HLTDLR.HDD.MedicinechestCertificatenumber = Environment.Variables.TXTResult1[1].MedicineChestCertificateNumber;
+			SET OutputRoot.DFDL.HLTDLR.HDD.MedicineChestCertPlace = Environment.Variables.TXTResult1[1].MedicineChestCertPlace;
+			SET OutputRoot.DFDL.HLTDLR.HDD.MedicineChestCertDate = Environment.Variables.TXTResult1[1].MedicineChestCertDate;
+			SET OutputRoot.DFDL.HLTDLR.HDD.WhetherShipProvisionSupplied = Environment.Variables.TXTResult1[1].WhetherShipProvisionSupplied;
+			SET OutputRoot.DFDL.HLTDLR.HDD.WhetherShipWasSuppliedWithWater = Environment.Variables.TXTResult1[1].WhetherShipWasSuppliedWithWater;
+			SET OutputRoot.DFDL.HLTDLR.HDD.GarbageCollected = Environment.Variables.TXTResult1[1].GarbageCollected;
+			SET OutputRoot.DFDL.HLTDLR.HDD.SludgeDischarge = Environment.Variables.TXTResult1[1].SludgeDischarge;
+			SET OutputRoot.DFDL.HLTDLR.HDD.SewageDischarge = Environment.Variables.TXTResult1[1].SewageDischarge;
+			SET OutputRoot.DFDL.HLTDLR.HDD.AnySickCrewDuringTheStayAtPort = Environment.Variables.TXTResult1[1].AnySicknessOfCrewDuringTheStayAtPort;
+			SET OutputRoot.DFDL.HLTDLR.HDD.AnyCrewSignedOffAndHospitalizedAtPort = Environment.Variables.TXTResult1[1].AnyCrewSignedOffOrHospitalizedAtPort;
+			SET OutputRoot.DFDL.HLTDLR.HDD.FreePratiquePermission = Environment.Variables.TXTResult1[1].FreePratiquePermissionGranted;
+			SET OutputRoot.DFDL.HLTDLR.HDD.RadioFreePratique = Environment.Variables.TXTResult1[1].RadioFreePratiquePermissionGranted;
+			SET OutputRoot.DFDL.HLTDLR.HDD.LimitedfreePratique = Environment.Variables.TXTResult1[1].LimitedfreePratique;
+			--UNT
+			SET OutputRoot.DFDL.HLTDLR.UNT.DocumentCreatedDateandTime = Environment.Variables.TXTResult5[1].IssuedDateTime;
+		ELSE
+			SET OutputRoot.Properties.MessageType ='{}:HLTDLR';
+			SET OutputRoot.Properties.MessageSet ='{JMB_DFDL}';
+			SET OutputRoot.Properties.ReplyProtocol = 'FILE';
+			--UNH
+			SET OutputRoot.DFDL.HLTDLR.UNH.DocumentType = 'HLTDLR';
+			SET OutputRoot.DFDL.HLTDLR.UNH.DocumentName = 'Health Declaration for Sail Out';
+			SET OutputRoot.DFDL.HLTDLR.UNH.DocumentNumber = Environment.Variables.TXTResult1[1].DocumentNumber;
+			SET OutputRoot.DFDL.HLTDLR.UNH.CommonRefNumber = Environment.Variables.TXTResult1[1].CommonRefNumber;
+			SET OutputRoot.DFDL.HLTDLR.UNH.MessageType = Environment.Variables.TXTResult1[1].MessageType;
+			SET OutputRoot.DFDL.HLTDLR.UNH.SenderID = Environment.Variables.TXTResult2[1].ReceivingParty;
+			--RPD
+			DECLARE countRecord INTEGER 0;
+			DECLARE i INTEGER 1;
+
+			SET countRecord = CARDINALITY(Environment.Variables.TXTResult1[]);
+
+			WHILE countRecord > 0 DO
+				SET OutputRoot.DFDL.HLTDLR.RPD.RecipientsID[i] = Environment.Variables.TXTResult1[i].SenderID ;
+				SET i = i + 1;
+				SET countRecord = countRecord - 1;
+			END WHILE;
+			--for NPD
+			DECLARE countRecord1 INTEGER 0;
+			DECLARE j INTEGER 1;
+
+			SET countRecord1 = CARDINALITY(Environment.Variables.TXTResult3[]);
+
+			WHILE countRecord1 > 0 DO
+				SET OutputRoot.DFDL.HLTDLR.NPD.NotifyPartyIDs[j] = Environment.Variables.TXTResult3[j].ReceivingParty ;
+				SET j = j + 1;
+				SET countRecord1 = countRecord1 - 1;
+			END WHILE;
+			--HDD
+
+			SET OutputRoot.DFDL.HLTDLR.HDD.RecordType = Environment.Variables.TXTResult4[1].RecordType;
+			SET OutputRoot.DFDL.HLTDLR.HDD.VCN = Environment.Variables.TXTResult1[1].VCN;
+			SET OutputRoot.DFDL.HLTDLR.HDD.IMONumber = Environment.Variables.TXTResult1[1].IMONumber;
+			SET OutputRoot.DFDL.HLTDLR.HDD.VoyageNumber = Environment.Variables.TXTResult1[1].VoyageNumber;
+			SET OutputRoot.DFDL.HLTDLR.HDD.CallSign = Environment.Variables.TXTResult1[1].CallSign;
+			SET OutputRoot.DFDL.HLTDLR.HDD.ShipName = Environment.Variables.TXTResult1[1].VesselName;
+			SET OutputRoot.DFDL.HLTDLR.HDD.ShipNationality = Environment.Variables.TXTResult1[1].ShipNationality;
+			SET OutputRoot.DFDL.HLTDLR.HDD.ExpectedDateTimeOfArrival = Environment.Variables.TXTResult1[1].ETA;
+			SET OutputRoot.DFDL.HLTDLR.HDD.ExpectedDateTimeOfDeparture = Environment.Variables.TXTResult1[1].ETD;
+			SET OutputRoot.DFDL.HLTDLR.HDD.Berth = Environment.Variables.TXTResult1[1].Berth;
+			SET OutputRoot.DFDL.HLTDLR.HDD.BerthType = Environment.Variables.TXTResult1[1].BerthType;
+			SET OutputRoot.DFDL.HLTDLR.HDD.MasterName = Environment.Variables.TXTResult1[1].MasterName;
+			SET OutputRoot.DFDL.HLTDLR.HDD.ShipSurgeonName = Environment.Variables.TXTResult1[1].ShipSurgeonName;
+			SET OutputRoot.DFDL.HLTDLR.HDD.NumberOfPassengerEmbarked = Environment.Variables.TXTResult1[1].NumberOfPassengerEmbarked;
+			SET OutputRoot.DFDL.HLTDLR.HDD.NumberOfPassengerDisembarked = Environment.Variables.TXTResult1[1].NumberOfPassengerDisembarked;
+			SET OutputRoot.DFDL.HLTDLR.HDD.NumberOfCrewEmbarked = Environment.Variables.TXTResult1[1].NumberOfCrewEmbarked;
+			SET OutputRoot.DFDL.HLTDLR.HDD.NumberOfCrewDisembarked = Environment.Variables.TXTResult1[1].NumberOfCrewDisembarked;
+			SET OutputRoot.DFDL.HLTDLR.HDD.NextPortOfCall = Environment.Variables.TXTResult1[1].NextPortOfCall;
+			SET OutputRoot.DFDL.HLTDLR.HDD.LastPortOfCall = Environment.Variables.TXTResult1[1].LastPortOfCall;
+			SET OutputRoot.DFDL.HLTDLR.HDD.UnusualMortalityOfRats = Environment.Variables.TXTResult1[1].UnusualMortalityOfRats;
+			SET OutputRoot.DFDL.HLTDLR.HDD.UnusualMortalityDetails = Environment.Variables.TXTResult1[1].UnusualMortalityDetails;
+			SET OutputRoot.DFDL.HLTDLR.HDD.ShipSanitationCertificateNumber = Environment.Variables.TXTResult1[1].ShipSanitationCertificateNumber;
+			SET OutputRoot.DFDL.HLTDLR.HDD.ShipSanitaionCertificateplace = Environment.Variables.TXTResult1[1].ShipSanitaionCertificatePlace;
+			SET OutputRoot.DFDL.HLTDLR.HDD.DateOfIssue = Environment.Variables.TXTResult1[1].DateOfIssue;
+			SET OutputRoot.DFDL.HLTDLR.HDD.MedicinechestCertificatenumber = Environment.Variables.TXTResult1[1].MedicineChestCertificateNumber;
+			SET OutputRoot.DFDL.HLTDLR.HDD.MedicineChestCertPlace = Environment.Variables.TXTResult1[1].MedicineChestCertPlace;
+			SET OutputRoot.DFDL.HLTDLR.HDD.MedicineChestCertDate = Environment.Variables.TXTResult1[1].MedicineChestCertDate;
+			SET OutputRoot.DFDL.HLTDLR.HDD.WhetherShipProvisionSupplied = Environment.Variables.TXTResult1[1].WhetherShipProvisionSupplied;
+			SET OutputRoot.DFDL.HLTDLR.HDD.WhetherShipWasSuppliedWithWater = Environment.Variables.TXTResult1[1].WhetherShipWasSuppliedWithWater;
+			SET OutputRoot.DFDL.HLTDLR.HDD.GarbageCollected = Environment.Variables.TXTResult1[1].GarbageCollected;
+			SET OutputRoot.DFDL.HLTDLR.HDD.SludgeDischarge = Environment.Variables.TXTResult1[1].SludgeDischarge;
+			SET OutputRoot.DFDL.HLTDLR.HDD.SewageDischarge = Environment.Variables.TXTResult1[1].SewageDischarge;
+			SET OutputRoot.DFDL.HLTDLR.HDD.AnySickCrewDuringTheStayAtPort = Environment.Variables.TXTResult1[1].AnySicknessOfCrewDuringTheStayAtPort;
+			SET OutputRoot.DFDL.HLTDLR.HDD.AnyCrewSignedOffAndHospitalizedAtPort = Environment.Variables.TXTResult1[1].AnyCrewSignedOffOrHospitalizedAtPort;
+			SET OutputRoot.DFDL.HLTDLR.HDD.FreePratiquePermission = Environment.Variables.TXTResult1[1].FreePratiquePermissionGranted;
+			SET OutputRoot.DFDL.HLTDLR.HDD.RadioFreePratique = Environment.Variables.TXTResult1[1].RadioFreePratiquePermissionGranted;
+			SET OutputRoot.DFDL.HLTDLR.HDD.LimitedfreePratique = Environment.Variables.TXTResult1[1].LimitedfreePratique;
+			IF LENGTH(Environment.Variables.TXTResult1.ReasonForRejection) <> 0 THEN
+				SET OutputRoot.DFDL.HLTDLR.HDD.Comments = Environment.Variables.TXTResult1[1].ReasonForRejection;
+			END IF;
+			--UNT
+			SET OutputRoot.DFDL.HLTDLR.UNT.DocumentCreatedDateandTime = Environment.Variables.TXTResult5[1].IssuedDateTime;		
+
+
+
+		END IF;
+
+	END;
+
+	CREATE PROCEDURE EDI_TGetHLTDLR( IN TransactionID CHARACTER)
+	LANGUAGE DATABASE
+	DYNAMIC RESULT SETS 5
+	EXTERNAL NAME "dbo.EDI_TGetHLTDLR";
+
+END MODULE;
+
+
+CREATE COMPUTE MODULE PILOT_Get_HLTDLR_Data_mailSMSCall_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET Environment.variables.mailStartTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS MAILSTARTTIME;');
+		SET Environment.variables.mailEndTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS MAILENDTIME;');
+		SET Environment.variables.SMSStartTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS SMSSTARTTIME;');
+		DECLARE response BLOB ASBITSTREAM(InputRoot.JSON.Data, 549,1208);
+		DECLARE ReplaceCarriageReturn BLOB X'0d0a';
+		SET response = REPLACE(response, ReplaceCarriageReturn);
+		SET Environment.variables.response = CAST(response AS CHARACTER CCSID 1208);
+		IF (Environment.variables.APICall = TRUE) THEN
+			UPDATE Database.PCSIBM.TIBM_LOG_AUDIT_API AS SP SET TRM_STATUS = '1', RES_PAYLOAD = Environment.variables.response WHERE SP.MS_REF_NO = Environment.variables.txnID AND SP.AUDITSEQ = Environment.variables.AuditSeq[1].SEQ;
+		END IF;
+		DECLARE crlf CHAR CAST(CAST('X''0A''' AS BLOB) AS CHAR CCSID 1208);
+		IF Environment.Flag = 'Y' THEN
+			IF Environment.Format = 'XML' THEN
+				---------------------------------------------------------------------Submitted------------------------------------------------------------------------------------
+				IF (Environment.Variables.XMLResultHD.ApprovalStatus = 'Submitted') THEN
+					SET Environment.TemplateSA = 'Dear '||COALESCE(Environment.Variables.XMLResultHD.SenderName,'') ||','||' your Health Declaration For Sail Out request has been submitted successfully.' ||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.XMLResultHD.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.XMLResultHD.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.XMLResultHD.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.XMLResultHD.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePA = 'Dear PHO a Health Declaration For Sail Out request has been submitted.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.XMLResultHD.CommonRefNumber,'') ||crlf||
+					'Shipping Agent Name: '||COALESCE(Environment.Variables.XMLResultHD.SenderName,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.XMLResultHD.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.XMLResultHD.Trade,'') ||crlf||
+					'Submission Date & Time: '||COALESCE(Environment.Variables.XMLResultHD.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePO = 'Dear Port Authority,'||crlf||
+					'A Request for Health Declaration For Sail Out has been submitted by '||COALESCE(Environment.Variables.XMLResultHD.SenderName,'')||' to PHO.'||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.XMLResultHD.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.XMLResultHD.VCN,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.XMLResultHD.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.XMLResultHD.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.XMLResultHD.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+
+					IF (Environment.Variables.XMLResultREC.Port_Email_Id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.XMLResultREC[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.XMLResultREC[K].Port_Email_Id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.XMLResultREC[K].Port_Email_Id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Health Declaration For Sail Out Request has been Submitted for Vessel - '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePO;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+
+					IF (Environment.Variables.XMLResultREC.Email_id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.XMLResultREC[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.XMLResultREC[K].Email_id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.XMLResultREC[K].Email_id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Health Declaration submitted for vessel '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+
+					IF (LENGTH(Environment.Variables.XMLResultHD.Sender_Email_id) <> 0) THEN
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.Variables.XMLResultHD.Sender_Email_id;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Health Declaration submitted for vessel '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'')||'.'; --'SUBJECT';----
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					---------------------------------------------------------------------Approved------------------------------------------------------------------------------------
+				ELSEIF (Environment.Variables.XMLResultHD.ApprovalStatus = 'Approved') THEN
+					SET Environment.TemplateSA = 'Dear '||COALESCE(Environment.Variables.XMLResultHD.SenderName,'') ||','||'  your Health Declaration For Sail Out request has been approved.' ||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.XMLResultHD.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.XMLResultHD.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.XMLResultHD.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.XMLResultHD.SubmissionDateTime,'') ||crlf||
+					'Approval Date & Time: '||COALESCE(Environment.Variables.XMLResultHD.ApprovedDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+					--
+					SET Environment.TemplatePA = 'Dear PHO a Health Declaration For Sail Out request has been Approved.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.XMLResultHD.CommonRefNumber,'') ||crlf||
+					'Shipping Agent Name: '||COALESCE(Environment.Variables.XMLResultHD.SenderName,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.XMLResultHD.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.XMLResultHD.Trade,'') ||crlf||
+					'Submission Date & Time: '||COALESCE(Environment.Variables.XMLResultHD.SubmissionDateTime,'') ||crlf||
+					'Approval Date & Time: '||COALESCE(Environment.Variables.XMLResultHD.ApprovedDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePO = 'Dear Port Authority,'||crlf||
+					'The Request for Health Declaration For Sail Out submitted by '||COALESCE(Environment.Variables.XMLResultHD.SenderName,'')||' has been approved by PHO.'||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.XMLResultHD.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.XMLResultHD.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.XMLResultHD.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.XMLResultHD.SubmissionDateTime,'') ||crlf||
+					'Approval Date & Time: '||COALESCE(Environment.Variables.XMLResultHD.ApprovedDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					IF (Environment.Variables.XMLResultREC.Port_Email_Id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.XMLResultREC[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.XMLResultREC[K].Port_Email_Id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.XMLResultREC[K].Port_Email_Id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Health Declaration For Sail Out Request has been Approved for Vessel - '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePO;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+
+					IF (Environment.Variables.XMLResultREC.Email_id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.XMLResultREC[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.XMLResultREC[K].Email_id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.XMLResultREC[K].Email_id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Health Declaration approved for vessel '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					IF (LENGTH(Environment.Variables.XMLResultHD.Sender_Email_id) <> 0) THEN
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.Variables.XMLResultHD.Sender_Email_id;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Health Declaration approved for vessel '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'')||'.'; --'SUBJECT';----
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					---------------------------------------------------------------------Rejected------------------------------------------------------------------------------------
+				ELSEIF (Environment.Variables.XMLResultHD.ApprovalStatus = 'Rejected') THEN
+					SET Environment.TemplateSA = 'Dear '||COALESCE(Environment.Variables.XMLResultHD.SenderName,'') ||','||' your Health Declaration has been rejected.' ||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.XMLResultHD.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.XMLResultHD.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.XMLResultHD.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.XMLResultHD.SubmissionDateTime,'') ||crlf||
+					'Reason For Rejection: '||COALESCE(Environment.Variables.XMLResultHD.ReasonForRejection,'') ||crlf||
+					'Rejection Date & Time: '||COALESCE(Environment.Variables.XMLResultHD.RejectionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePA = 'Dear PHO a Health Declaration For Sail Out request has been Rejected.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.XMLResultHD.CommonRefNumber,'') ||crlf||
+					'Shipping Agent Name: '||COALESCE(Environment.Variables.XMLResultHD.SenderName,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.XMLResultHD.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.XMLResultHD.Trade,'') ||crlf||
+					'Submission Date & Time: '||COALESCE(Environment.Variables.XMLResultHD.SubmissionDateTime,'') ||crlf||
+					'Reason For Rejection: '||COALESCE(Environment.Variables.XMLResultHD.ReasonForRejection,'') ||crlf||
+					'Rejection Date & Time: '||COALESCE(Environment.Variables.XMLResultHD.RejectionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePO = 'Dear Port Authority,'||crlf||
+					'The Request for Health Declaration For Sail Out submitted by '||COALESCE(Environment.Variables.XMLResultHD.SenderName,'')||' has been rejected by PHO.'||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.XMLResultHD.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.XMLResultHD.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.XMLResultHD.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.XMLResultHD.SubmissionDateTime,'') ||crlf||
+					'Reason For Rejection: '||COALESCE(Environment.Variables.XMLResultHD.ReasonForRejection,'') ||crlf||
+					'Rejection Date & Time: '||COALESCE(Environment.Variables.XMLResultHD.RejectionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					IF (Environment.Variables.XMLResultREC.Port_Email_Id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.XMLResultREC[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.XMLResultREC[K].Port_Email_Id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.XMLResultREC[K].Port_Email_Id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Health Declaration For Sail Out Request has been Rejected for Vessel - '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePO;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+
+					IF (Environment.Variables.XMLResultREC.Email_id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.XMLResultREC[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.XMLResultREC[K].Email_id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.XMLResultREC[K].Email_id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Health Declaration rejected for vessel '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					IF (LENGTH(Environment.Variables.XMLResultHD.Sender_Email_id) <> 0) THEN
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.Variables.XMLResultHD.Sender_Email_id;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Health Declaration rejected for vessel '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'')||'.'; --'SUBJECT';----
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					---------------------------------------------------------------------Resubmitted------------------------------------------------------------------------------------
+				ELSEIF (Environment.Variables.XMLResultHD.ApprovalStatus = 'Resubmitted') THEN
+					SET Environment.TemplateSA = 'Dear '||COALESCE(Environment.Variables.XMLResultHD.SenderName,'') ||','||' your Health Declaration has been Resubmitted.' ||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.XMLResultHD.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.XMLResultHD.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.XMLResultHD.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.XMLResultHD.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePA = 'Dear PHO a Health Declaration For Sail Out request has been Resubmitted.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.XMLResultHD.CommonRefNumber,'') ||crlf||
+					'Shipping Agent Name: '||COALESCE(Environment.Variables.XMLResultHD.SenderName,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.XMLResultHD.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.XMLResultHD.Trade,'') ||crlf||
+					'Submission Date & Time: '||COALESCE(Environment.Variables.XMLResultHD.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePO = 'Dear Port Authority,'||crlf||
+					'A Request for Health Declaration For Sail Out has been Resubmitted by '||COALESCE(Environment.Variables.XMLResultHD.SenderName,'')||' to PHO.'||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.XMLResultHD.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.XMLResultHD.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.XMLResultHD.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.XMLResultHD.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					IF (Environment.Variables.XMLResultREC.Port_Email_Id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.XMLResultREC[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.XMLResultREC[K].Port_Email_Id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.XMLResultREC[K].Port_Email_Id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Health Declaration For Sail Out Request has been Resubmitted for Vessel  - '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePO;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+
+					IF (Environment.Variables.XMLResultREC.Email_id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.XMLResultREC[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.XMLResultREC[K].Email_id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.XMLResultREC[K].Email_id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Health Declaration Resubmitted for vessel '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					IF (LENGTH(Environment.Variables.XMLResultHD.Sender_Email_id) <> 0) THEN
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.Variables.XMLResultHD.Sender_Email_id;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Health Declaration Resubmitted for vessel '||COALESCE(Environment.Variables.XMLResultHD.VesselName,'')||'.'; --'SUBJECT';----
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+				END IF;
+				--------------------------------------------------------------------TXT--------------------------------------------------------------------------------
+			ELSEIF Environment.Format = 'TXT' THEN
+				---------------------------------------------------------------------Submitted------------------------------------------------------------------------------------
+				IF (Environment.Variables.TXTResult1.ApprovalStatus = 'Submitted') THEN
+					SET Environment.TemplateSA = 'Dear '||COALESCE(Environment.Variables.TXTResult1.SenderName,'') ||','||' your Health Declaration For Sail Out request has been submitted successfully.' ||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePA = 'Dear PHO a Health Declaration For Sail Out request has been submitted.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Shipping Agent Name: '||COALESCE(Environment.Variables.TXTResult1.SenderName,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Submission Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePO = 'Dear Port Authority,'||crlf||
+					'A Request for Health Declaration For Sail Out has been submitted by '||COALESCE(Environment.Variables.TXTResult1.SenderName,'')||' to PHO.'||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'VCN : '||COALESCE(Environment.Variables.TXTResult1.VCN,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+
+					IF (Environment.Variables.TXTResult2.Port_Email_Id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.TXTResult2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.TXTResult2[K].Port_Email_Id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.TXTResult2[K].Port_Email_Id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Health Declaration For Sail Out Request has been Submitted for Vessel - '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePO;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+
+					IF (Environment.Variables.TXTResult2.Email_id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.TXTResult2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.TXTResult2[K].Email_id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.TXTResult2[K].Email_id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Health Declaration submitted for vessel '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					IF (LENGTH(Environment.Variables.TXTResult1.Sender_Email_id) <> 0) THEN
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.Variables.TXTResult1.Sender_Email_id;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Health Declaration submitted for vessel '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';----
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					---------------------------------------------------------------------Approved------------------------------------------------------------------------------------
+				ELSEIF (Environment.Variables.TXTResult1.ApprovalStatus = 'Approved') THEN
+					SET Environment.TemplateSA = 'Dear '||COALESCE(Environment.Variables.TXTResult1.SenderName,'') ||','||'  your Health Declaration For Sail Out request has been approved.' ||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||
+					'Approval Date & Time: '||COALESCE(Environment.Variables.TXTResult1.ApprovedDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+					--
+					SET Environment.TemplatePA = 'Dear PHO a Health Declaration For Sail Out request has been Approved.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Shipping Agent Name: '||COALESCE(Environment.Variables.TXTResult1.SenderName,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Submission Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||
+					'Approval Date & Time: '||COALESCE(Environment.Variables.TXTResult1.ApprovedDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePO = 'Dear Port Authority,'||crlf||
+					'A Request for Health Declaration For Sail Out has been submitted by '||COALESCE(Environment.Variables.TXTResult1.SenderName,'')||' has been Approved by PHO.'||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||
+					'Approval Date & Time: '||COALESCE(Environment.Variables.TXTResult1.ApprovedDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+
+					IF (Environment.Variables.TXTResult2.Port_Email_Id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.TXTResult2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.TXTResult2[K].Port_Email_Id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.TXTResult2[K].Port_Email_Id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Health Declaration For Sail Out Request has been Approved for Vessel - '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePO;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+
+					IF (Environment.Variables.TXTResult2.Email_id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.TXTResult2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.TXTResult2[K].Email_id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.TXTResult2[K].Email_id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Health Declaration approved for vessel '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					IF (LENGTH(Environment.Variables.TXTResult1.Sender_Email_id) <> 0) THEN
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.Variables.TXTResult1.Sender_Email_id;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Health Declaration approved for vessel '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';----
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					---------------------------------------------------------------------Rejected------------------------------------------------------------------------------------
+				ELSEIF (Environment.Variables.TXTResult1.ApprovalStatus = 'Rejected') THEN
+					SET Environment.TemplateSA = 'Dear '||COALESCE(Environment.Variables.TXTResult1.SenderName,'') ||','||' your Health Declaration has been rejected.' ||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||
+					'Reason For Rejection: '||COALESCE(Environment.Variables.TXTResult1.ReasonForRejection,'') ||crlf||
+					'Rejection Date & Time: '||COALESCE(Environment.Variables.TXTResult1.RejectionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePA = 'Dear PHO a Health Declaration For Sail Out request has been Rejected.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Shipping Agent Name: '||COALESCE(Environment.Variables.TXTResult1.SenderName,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Submission Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||
+					'Reason For Rejection: '||COALESCE(Environment.Variables.TXTResult1.ReasonForRejection,'') ||crlf||
+					'Rejection Date & Time: '||COALESCE(Environment.Variables.TXTResult1.RejectionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePO = 'Dear Port Authority,'||crlf||
+					'A Request for Health Declaration For Sail Out has been submitted by '||COALESCE(Environment.Variables.TXTResult1.SenderName,'')||' has been Rejected by PHO.'||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||
+					'Reason For Rejection: '||COALESCE(Environment.Variables.TXTResult1.ReasonForRejection,'') ||crlf||
+					'Rejection Date & Time: '||COALESCE(Environment.Variables.TXTResult1.RejectionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+
+					IF (Environment.Variables.TXTResult2.Port_Email_Id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.TXTResult2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.TXTResult2[K].Port_Email_Id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.TXTResult2[K].Port_Email_Id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Health Declaration For Sail Out Request has been Rejected for Vessel - '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePO;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+
+					IF (Environment.Variables.TXTResult2.Email_id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.TXTResult2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.TXTResult2[K].Email_id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.TXTResult2[K].Email_id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Health Declaration rejected for vessel '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					IF (LENGTH(Environment.Variables.TXTResult1.Sender_Email_id) <> 0) THEN
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.Variables.TXTResult1.Sender_Email_id;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Health Declaration rejected for vessel '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';----
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					---------------------------------------------------------------------Resubmitted------------------------------------------------------------------------------------
+				ELSEIF (Environment.Variables.TXTResult1.ApprovalStatus = 'Resubmitted') THEN
+					SET Environment.TemplateSA = 'Dear '||COALESCE(Environment.Variables.TXTResult1.SenderName,'') ||','||' your Health Declaration has been Resubmitted.' ||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePA = 'Dear PHO a Health Declaration For Sail Out request has been Resubmitted.'||crlf||
+					'Please find request details below'||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Shipping Agent Name: '||COALESCE(Environment.Variables.TXTResult1.SenderName,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'IMO No.: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Submission Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+					SET Environment.TemplatePO = 'Dear Port Authority,'||crlf||
+					'A Request for Health Declaration For Sail Out has been Resubmitted by '||COALESCE(Environment.Variables.TXTResult1.SenderName,'')||' to PHO.'||crlf||
+					'Please find request details below' ||crlf||crlf||
+					'Common Reference Number: '||COALESCE(Environment.Variables.TXTResult1.CommonRefNumber,'') ||crlf||
+					'Vessel Name: '||COALESCE(Environment.Variables.TXTResult1.VesselName,'') ||crlf||
+					'IMO Number: '||COALESCE(Environment.Variables.TXTResult1.IMONumber,'') ||crlf||
+					'Trade: '||COALESCE(Environment.Variables.TXTResult1.Trade,'') ||crlf||
+					'Request Date & Time: '||COALESCE(Environment.Variables.TXTResult1.SubmissionDateTime,'') ||crlf||crlf||
+					'Please visit the SAGAR SETU website for more details.'||crlf||crlf||
+					'Thanks & regards,'||crlf||
+					'Team NLPM ';
+
+
+					IF (Environment.Variables.TXTResult2.Port_Email_Id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.TXTResult2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.TXTResult2[K].Port_Email_Id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.TXTResult2[K].Port_Email_Id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = 'Health Declaration For Sail Out Request has been Resubmitted for Vessel - '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePO;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+
+
+					IF (Environment.Variables.TXTResult2.Email_id <> '') THEN
+						DECLARE RecieveCount INTEGER CARDINALITY (Environment.Variables.TXTResult2[]);
+						DECLARE Recipientlist CHARACTER;
+						DECLARE K INTEGER 1;
+						WHILE (K <= RecieveCount) DO
+							IF (K = 1) THEN
+								SET Recipientlist = Environment.Variables.TXTResult2[K].Email_id;
+							ELSE
+								SET Recipientlist = COALESCE(Recipientlist,'')||Environment.Variables.TXTResult2[K].Email_id;
+							END IF;
+							SET Recipientlist = Recipientlist ||',';
+							SET K = K + 1;
+						END WHILE ;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Recipientlist;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Health Declaration Resubmitted for vessel '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';--
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplatePA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+					IF (LENGTH(Environment.Variables.TXTResult1.Sender_Email_id) <> 0) THEN
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.PCS_Audit.Header = Environment.PCS_Audit.Header;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.To = Environment.Variables.TXTResult1.Sender_Email_id;
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.From = ' Health Declaration Resubmitted for vessel '||COALESCE(Environment.Variables.TXTResult1.VesselName,'')||'.'; --'SUBJECT';----
+						SET OutputRoot.JSON.Data.JMBNotification.EmailDetails.Template = Environment.TemplateSA;
+						PROPAGATE TO TERMINAL 'out1';
+					END IF;
+				END IF;
+			END IF;
+		END IF;
+
+	END;
+END MODULE;
+
+CREATE COMPUTE MODULE PILOT_Get_HLTDLR_Data_auditDetails_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET Environment.variables.ediEndTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS EDIENDTIME;');
+		DECLARE ediEndTime CHARACTER CAST(Environment.variables.ediEndTime[1].EDIENDTIME AS CHARACTER);
+		SET ediEndTime = REPLACE(ediEndTime,'TIMESTAMP ','');
+		-- SET ediEndTime = SUBSTRING(mailStartTime BEFORE '.');
+		SET ediEndTime = SUBSTRING(ediEndTime FROM 2 FOR 23);
+
+		DECLARE ediStartTime CHARACTER CAST(Environment.variables.ediStartTime[1].EDISTARTTIME AS CHARACTER);
+		DECLARE mailStartTime CHARACTER CAST(Environment.variables.mailStartTime[1].MAILSTARTTIME AS CHARACTER);
+		DECLARE mailEndTime CHARACTER CAST(Environment.variables.mailEndTime[1].MAILENDTIME AS CHARACTER);
+		DECLARE dbStartTime CHARACTER CAST(Environment.variables.dbStartTime[1].DBSTARTTIME AS CHARACTER);
+		DECLARE dbEndTime CHARACTER CAST(Environment.variables.dbEndTime[1].DBENDTIME AS CHARACTER);
+		DECLARE SMSStartTime CHARACTER CAST(Environment.variables.SMSStartTime[1].SMSSTARTTIME AS CHARACTER);
+
+		SET ediStartTime = REPLACE(ediStartTime,'TIMESTAMP ','');
+		SET ediStartTime = SUBSTRING(ediStartTime FROM 2 FOR 23);
+
+		SET mailStartTime = REPLACE(mailStartTime,'TIMESTAMP ','');
+		SET mailStartTime = SUBSTRING(mailStartTime FROM 2 FOR 23);
+
+		SET mailEndTime = REPLACE(mailEndTime,'TIMESTAMP ','');
+		SET mailEndTime = SUBSTRING(mailEndTime FROM 2 FOR 23);
+
+		SET SMSStartTime = REPLACE(SMSStartTime,'TIMESTAMP ','');
+		SET SMSStartTime = SUBSTRING(SMSStartTime FROM 2 FOR 23);
+
+		SET dbStartTime = REPLACE(dbStartTime,'TIMESTAMP ','');
+		SET dbStartTime = SUBSTRING(dbStartTime FROM 2 FOR 23);
+
+		SET dbEndTime = REPLACE(dbEndTime,'TIMESTAMP ','');
+		SET dbEndTime = SUBSTRING(dbEndTime FROM 2 FOR 23);
+
+		DECLARE messageSender CHARACTER;
+		DECLARE emailId CHARACTER;
+		DECLARE mobileNumber CHARACTER;
+		IF (Environment.Variables.Result[1].FileFormat = 'XML' OR Environment.Variables.Result56[1].FileFormat = 'XML') THEN
+			SET messageSender = Environment.Variables.XMLResultHD[1].SenderID;
+			SET emailId = Environment.Variables.XMLResultREC[1].Email_id;
+			SET mobileNumber = Environment.Variables.XMLResultREC[1].Mobile;
+		ELSE
+			SET messageSender = Environment.Variables.TXTResult1[1].SenderID;
+			SET emailId = Environment.Variables.TXTResult2[1].Email_id;
+			SET mobileNumber = Environment.Variables.TXTResult2[1].Mobile;
+		END IF;
+
+		SET OutputRoot.XMLNSC.PCS_Audit.Header.MS_REF_NO = Environment.variables.txnID;
+		DECLARE headerRef REFERENCE TO OutputRoot.XMLNSC.PCS_Audit.Header;
+		SET headerRef.MSG_UID = UUIDASCHAR;
+		IF (Environment.Variables.Result[1].FileFormat = 'XML' OR Environment.Variables.Result56[1].FileFormat = 'XML') THEN
+			IF (Environment.Variables.XMLResultHD.ApprovalStatus = 'Submitted') OR (Environment.Variables.XMLResultHD.ApprovalStatus = 'Resubmitted')THEN
+				SET headerRef.MSG_TYPE = 'HLDREQ_XML_OUT';
+			ELSE
+				SET headerRef.MSG_TYPE = 'HLTDLR_XML_OUT';
+			END IF;
+			
+			SET OutputRoot.XML.PCS_Audit.Header.EVENT_NAME = Environment.Variables.XMLResultHD.ApprovalStatus;
+		ELSE
+			SET headerRef.MSG_TYPE = 'HLTDLR_TXT_OUT';
+			SET OutputRoot.XML.PCS_Audit.Header.EVENT_NAME = Environment.Variables.TXTResult1.ApprovalStatus;
+		END IF;
+		SET headerRef.MSG_TIME = ediStartTime;
+		SET headerRef.MSG_SNDR = messageSender;
+
+		SET headerRef.PORT_CODE = SUBSTRING( Environment.variables.fileDirectory AFTER 'PORTS/');
+		SET headerRef.PORT_CODE = SUBSTRING(headerRef.PORT_CODE BEFORE '/');
+
+		SET OutputRoot.XMLNSC.PCS_Audit.Details.Message.EDI_START_TS = ediStartTime;
+		DECLARE messageRef REFERENCE TO OutputRoot.XMLNSC.PCS_Audit.Details.Message;
+		SET messageRef.EDI_END_TS = ediEndTime;
+		SET messageRef.FILE_NAME = Environment.variables.fileName;
+		SET messageRef.EDI_DIRECTORY_INFO = Environment.variables.fileDirectory;
+
+		SET OutputRoot.XMLNSC.PCS_Audit.Details.Email.MAIL_START_TS = mailStartTime;
+		DECLARE emailRef REFERENCE TO OutputRoot.XMLNSC.PCS_Audit.Details.Email;
+		SET emailRef.MAILING_ID = emailId;
+		SET emailRef.MAIL_NOTIFICATION_STATUS = 'Not Sent';
+		SET emailRef.MAIL_END_TS = mailEndTime;
+
+		SET OutputRoot.XMLNSC.PCS_Audit.Details.SMS.SMS_START_TS = SMSStartTime;
+		DECLARE smsRef REFERENCE TO OutputRoot.XMLNSC.PCS_Audit.Details.SMS;
+		SET smsRef.SMS_NOTIFICATION_NO = mobileNumber;
+		SET smsRef.SMS_NOTIFICATION_STATUS = 'Not Sent';
+
+		SET OutputRoot.XMLNSC.PCS_Audit.Details.Database.DB_SP_START_TS = dbStartTime;
+		DECLARE databaseRef REFERENCE TO OutputRoot.XMLNSC.PCS_Audit.Details.Database;
+		SET databaseRef.DB_SP_END_TS = dbEndTime;
+		SET databaseRef.DB_SP_STATUS = 'S';
+		SET databaseRef.DB_SP_REMARK = 'Executed successfully';
+
+		DECLARE outputBlob BLOB ASBITSTREAM(OutputRoot.XMLNSC, 549,1208);
+		DECLARE outputChar CHARACTER CAST(outputBlob AS CHARACTER CCSID 1208);
+		CALL EDI_InsIIBAudit(outputChar);
+		COMMIT;
+	END;
+
+	CREATE PROCEDURE EDI_InsIIBAudit( IN auditXML CHARACTER)
+	LANGUAGE DATABASE
+	DYNAMIC RESULT SETS 0
+	EXTERNAL NAME "dbo.EDI_InsIIBAudit";
+END MODULE;
+
+
+CREATE COMPUTE MODULE HLTDLR_ErrorUpdate_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE blobdata BLOB;
+		DECLARE resp,crmno CHARACTER;
+		-- SET blobdata = ASBITSTREAM(InputRoot.JSON.Data);
+		SET resp = CAST(InputRoot.BLOB.BLOB as character ccsid 1208);
+		SET crmno = Environment.variables.txnID;
+		UPDATE Database.PCSIBM.TIBM_LOG_AUDIT_API AS SP SET TRM_STATUS = '0',RES_PAYLOAD = resp WHERE SP.MS_REF_NO = crmno AND SP.AUDITSEQ = Environment.variables.AuditSeq[1].SEQ;
+		COMMIT;
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;
