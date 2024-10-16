@@ -2,9 +2,8 @@ BROKER SCHEMA OUTBOUND_TEXT_XML
 
 
 
-CREATE COMPUTE MODULE EDGA_Get_TPRORD_Data_GetFormatType_Compute
+CREE COMPUTE MODULE EDGA_Get_TPRORD_Data_GetFormatType_Compute
 	CREATE FUNCTION Main() RETURNS BOOLEAN
-	BEGIN
 		SET Environment.variables.ediStartTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS EDISTARTTIME;');
 		SET Environment.variables.txnID = InputRoot.XMLNSC.PCS.Common_Ref;
 		DECLARE MessageName CHARACTER InputRoot.XMLNSC.PCS.Action_In;
@@ -13,8 +12,7 @@ CREATE COMPUTE MODULE EDGA_Get_TPRORD_Data_GetFormatType_Compute
 		SET request = REPLACE(request, ReplaceCarriageReturn);
 		SET Environment.variables.request = CAST(request AS CHARACTER CCSID 1208);
 		SET Environment.variables.dbStartTime = PASSTHRU('SELECT CURRENT_TIMESTAMP AS DBSTARTTIME;');
-		CALL EDI_GetFormatTypeByRefAndMsg(Environment.variables.txnID,MessageName,Environment.Variables.Result[],Environment.Variables.Result56[]);		
-	END;
+		CALL EDI_GetFormatTypeByRefAndMsg(Environment.variables.txnID,MessageName,Environment.Variables.Result[],Environment.Variables.Result56[]);	
 		
 CREATE PROCEDURE EDI_GetFormatTypeByRefAndMsg( IN TransactionID CHARACTER,IN MessageName CHARACTER)
 LANGUAGE DATABASE
@@ -64,13 +62,12 @@ CREATE COMPUTE MODULE EDGA_Get_TPRORD_Data_xmlCreation_Compute
 			SET OutputRoot.XMLNSC.TransportOrder.DocumentDetails.DODetails.DO[i].DODate = Environment.Variables.XMLResultNP[i].DODate;
 			SET OutputRoot.XMLNSC.TransportOrder.DocumentDetails.DODetails.DO[i].ValidUpTo = Environment.Variables.XMLResultNP[i].ValidUpTo;
 			SET i = i + 1;
-		END WHILE;
+		END WHILE
 		
 		SET OutputRoot.XMLNSC.TransportOrder.DocumentSummary.IssuedDateTime = Environment.Variables.XMLResultIssueDt[1].IssuedDateTime;		
-		RETURN TRUE;
-	END;	
-	
-CREATE PROCEDURE EDI_XGetTPRORD( IN TransactionID CHARACTER)
+	RETURN TRUE;
+	END	
+	CREATE PROCEDURE EDI_XGetTPRORD( IN TransactionID CHARACTER)
 LANGUAGE DATABASE
 DYNAMIC RESULT SETS 5
 EXTERNAL NAME "dbo.EDI_XGetTPRORD";
